@@ -1,13 +1,13 @@
 import { Plugin, TFile } from 'obsidian';
 import { SettingTab } from './src/settings';
-import { compileComponent, compileJsxIntoComponent, getComponentFiles } from './src/components';
 import { Fragment as _Fragment, jsxs as _jsxs, jsx as _jsx } from 'react/jsx-runtime';
 import { ComponentType } from 'react';
 import { createRoot } from 'react-dom/client';
 import * as React from 'react';
 import { EmeraContextProvider } from './src/context';
-import { bundleFile } from './src/rollup';
-
+import { bundleFile, importFromString, compileJsxIntoComponent } from './src/bundle';
+import './src/modules';
+import { EMERA_COMPONENTS_REGISTRY } from './src/consts';
 
 interface PluginSettings {
     componentsFolder: string;
@@ -23,21 +23,13 @@ type QueueElement =
 
 export default class EmeraPlugin extends Plugin {
     settings: PluginSettings;
-    componentRegistry: Record<string, ComponentType<any>> = {};
+    componentsRegistry: Record<string, ComponentType<any>> = {};
     queue: QueueElement[] = [];
     isFilesLoaded = false;
 
     async onload() {
-        // @ts-ignore Need this for JSX transformation to work
-        window._emeraJsxRuntime = {
-            jsx: _jsx,
-            jsxs: _jsxs,
-            Fragment: _Fragment,
-        };
-
-        // @ts-ignore Need this for complex JSX trees to work
-        window._emeraComponentRegistry = this.componentRegistry;
-
+        // @ts-ignore
+        window[EMERA_COMPONENTS_REGISTRY] = this.componentsRegistry;
         await this.loadSettings();
         this.addSettingTab(new SettingTab(this.app, this));
 
@@ -54,16 +46,11 @@ export default class EmeraPlugin extends Plugin {
                 return;
             }
 
-            const bundledCode = bundleFile(this, indexFile);
-            console.log('Bundled code', bundledCode);
-            
-            const files = getComponentFiles(this);
-            console.log('Component files', files);
-            const compiled = await Promise.all(files.map(f => compileComponent(this, f)));
-            console.log('Compiled components', compiled);
-            compiled.forEach(d => {
-                this.componentRegistry[d.name] = d.component;
-            });
+            const bundledCode = await bundleFile(this, indexFile);
+            console.log('Bundled code');
+            console.log(bundledCode);
+            const registry = await importFromString(bundledCode);
+            Object.assign(this.componentsRegistry, registry);
             this.processQueue();
         });
 
@@ -98,10 +85,10 @@ export default class EmeraPlugin extends Plugin {
             if (!element) {
                 this.queue.splice(i, 1);
             } else if (descriptor.type === 'single') {
-                if (!this.componentRegistry[descriptor.name]) {
+                if (!this.componentsRegistry[descriptor.name]) {
                     throw new Error(`Unknown component ${descriptor.name}`);
                 }
-                console.log('Rendering', descriptor, this.componentRegistry[descriptor.name]);
+                console.log('Rendering', descriptor, this.componentsRegistry[descriptor.name]);
                 const src = element.textContent;
 
                 const container = document.createElement('div');
@@ -115,7 +102,7 @@ export default class EmeraPlugin extends Plugin {
                             file: descriptor.file,
                         }
                     },
-                        React.createElement(this.componentRegistry[descriptor.name], {}, src)
+                        React.createElement(this.componentsRegistry[descriptor.name], {}, src)
                     )
                 );
                 this.queue.splice(i, 1);

@@ -179,12 +179,10 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
-"@rollup/browser@^4.18.0":
-  version "4.18.0"
-  resolved "https://registry.yarnpkg.com/@rollup/browser/-/browser-4.18.0.tgz#ce4566126a665ff0c8f882ed6abb85d341e96796"
-  integrity sha512-2QIKliUh0DfER1x4+gdI0jQg2NAfUK6PhqOuSEKMY1RoLkFUhYvOsEfvnwDHuXl1dzksFdmkBOflfmFu8yTZfw==
-  dependencies:
-    "@types/estree" "1.0.5"
+"@rollup/browser@^3.29.0":
+  version "3.29.4"
+  resolved "https://registry.yarnpkg.com/@rollup/browser/-/browser-3.29.4.tgz#5c534f8ab3a617e7d12d99dc10d16755b07e4b17"
+  integrity sha512-qkWkilNBn+90/9Xn2stuwFpXYhG/mZVPlDkTIPdQSEtJES0NS4o4atceEqeGeHOjQREY2jaIv7ld3IajA/Bmfw==
 
 "@types/babel__core@^7.1.0":
   version "7.20.5"
@@ -233,7 +231,7 @@
   dependencies:
     "@types/tern" "*"
 
-"@types/estree@*", "@types/estree@1.0.5":
+"@types/estree@*":
   version "1.0.5"
   resolved "https://registry.yarnpkg.com/@types/estree/-/estree-1.0.5.tgz#a6ce3e556e00fd9895dd872dd172ad0d4bd687f4"
   integrity sha512-/kYRxGDLWzHOB7q+wtSUQlFrtcdUccpfy+X+9iMBpHK8QLLhx2wIPYuS5DYtR9Wa/YlZAbIovy7qVdB1Aq6Lyw==
