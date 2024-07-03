@@ -4,6 +4,7 @@ import type EmeraPlugin from '../main';
 
 import * as Babel from '@babel/standalone';
 import { EMERA_COMPONENTS_REGISTRY, EMERA_MODULES } from './consts';
+import { ComponentType } from 'react';
 
 // @ts-ignore type this
 const t = Babel.packages.types;
@@ -122,7 +123,7 @@ export const transpileCode = (code: string, patchJsxNamespace = false) => {
         throw new Error('Babel failed :(');
     }
     return transpiled;
-} 
+}
 
 export const bundleFile = async (plugin: EmeraPlugin, file: TFile) => {
     console.log('Bundling', file.path);
@@ -188,4 +189,23 @@ export const compileJsxIntoComponent = async (jsx: string) => {
     console.log(transpiled);
     const { default: component } = await importFromString(transpiled);
     return component;
+};
+
+export const loadComponents = async (plugin: EmeraPlugin): Promise<Record<string, ComponentType<any>>> => {
+    const extensions = ['js', 'jsx', 'ts', 'tsx'];
+    let indexFile: TFile | null = null;
+    for (const ext of extensions) {
+        indexFile = plugin.app.vault.getFileByPath(`${plugin.settings.componentsFolder}/index.${ext}`);
+        if (indexFile) break;
+    }
+    if (!indexFile) {
+        console.log('Index file not found');
+        return {};
+    }
+
+    const bundledCode = await bundleFile(plugin, indexFile);
+    // console.log('Bundled code');
+    // console.log(bundledCode);
+    const registry = await importFromString(bundledCode);
+    return registry;
 };
