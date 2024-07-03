@@ -6,8 +6,9 @@ import { createRoot } from 'react-dom/client';
 import * as React from 'react';
 import { EmeraContextProvider } from './src/context';
 import { bundleFile, importFromString, compileJsxIntoComponent } from './src/bundle';
-import { EMERA_COMPONENTS_REGISTRY, EMERA_JSX_LANG_NAME, EMERA_MD_LANG_NAME } from './src/consts';
+import { EMERA_COMPONENT_PREFIX, EMERA_COMPONENTS_REGISTRY, EMERA_JSX_LANG_NAME } from './src/consts';
 import './src/side-effects';
+import { registerCodemirrorMode } from './src/codemirror';
 
 
 interface PluginSettings {
@@ -57,24 +58,44 @@ export default class EmeraPlugin extends Plugin {
             // console.log(bundledCode);
             const registry = await importFromString(bundledCode);
             Object.assign(this.componentsRegistry, registry);
-            this.processQueue();
-        });
 
-        this.registerMarkdownPostProcessor(async (el, ctx) => {
-            const codeblocks = Array.from(el.querySelectorAll<HTMLElement>('code'));
-            for (const code of codeblocks) {
-                const emeraComponentIdentifier = code.className.includes(`language-${EMERA_MD_LANG_NAME}::`) ? (new RegExp(`language-${EMERA_MD_LANG_NAME}::(\\w+)`, 'gmi')).exec(code.className)?.[1] : null;
-                if (emeraComponentIdentifier) {
-                    // Need to replace this code block
-                    this.queue.push({ type: 'single', name: emeraComponentIdentifier, elementRef: new WeakRef(code), file: this.app.vault.getFileByPath(ctx.sourcePath)! });
+            Object.entries(this.componentsRegistry).forEach(([name, component]) => {
+                registerCodemirrorMode(`${EMERA_COMPONENT_PREFIX}${name}`, 'markdown');
+                this.registerMarkdownCodeBlockProcessor(`${EMERA_COMPONENT_PREFIX}${name}`, (src, container, ctx) => {
+                    const file = this.app.vault.getFileByPath(ctx.sourcePath)!;
+                    container.classList.add('emera-root');
+                    const root = createRoot(container);
+                    root.render(
+                        React.createElement(EmeraContextProvider, {
+                            value: {
+                                plugin: this,
+                                file,
+                            }
+                        },
+                            React.createElement(component, {}, src)
+                        )
+                    );
+                });
+            });
+
+            this.registerMarkdownCodeBlockProcessor(EMERA_JSX_LANG_NAME, async (src, container, ctx) => {
+                const file = this.app.vault.getFileByPath(ctx.sourcePath)!;
+                if (src) {
+                    const component = await compileJsxIntoComponent(src);
+                    container.classList.add('emera-root');
+                    const root = createRoot(container);
+                    root.render(
+                        React.createElement(EmeraContextProvider, {
+                            value: {
+                                plugin: this,
+                                file,
+                            }
+                        },
+                            React.createElement(component, {})
+                        )
+                    );
                 }
-                if (code.classList.contains(`language-${EMERA_JSX_LANG_NAME}`)) {
-                    this.queue.push({ type: 'tree', elementRef: new WeakRef(code), file: this.app.vault.getFileByPath(ctx.sourcePath)! });
-                }
-            }
-            if (this.isFilesLoaded) {
-                this.processQueue();
-            }
+            });
         });
     }
 
@@ -94,8 +115,8 @@ export default class EmeraPlugin extends Plugin {
                 const src = element.textContent;
 
                 const container = document.createElement('div');
-                container.classList.add('emera-root');
                 element.parentElement!.replaceWith(container);
+                container.classList.add('emera-root');
                 const root = createRoot(container);
                 root.render(
                     React.createElement(EmeraContextProvider, {

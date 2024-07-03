@@ -7,22 +7,8 @@ ToDo:
 - [ ] Inline components
 - [ ] Inline js execution?
 - [ ] CSS imports
-- [ ] Syntax highlighting in code blocks (prob will need to alias emera to jsx/tsx)
-- [ ] Bundle instead of transpiling? With just transpiling, local imports don't work
-    - Rollup can be run in-browser https://rollupjs.org/faqs/#how-do-i-run-rollup-itself-in-a-browser
-    - Maybe SystemJS (not sure if it's what we need though) https://github.com/systemjs/systemjs
-- [ ] If we're bundling modules, maybe use plugin to overwrite imports from `emera` module into unpacking, so users won't need to make a akward factory functions?
 - [ ] Cleanup & refactoring
 
-
-## How it works
-
-1. User creates a folder with `index.js(x)` file from which he exports all the components
-1. Emera bundles this file using rollup/browser
-1. Emera adds a custom plugin which overwrites imports of pre-defined modules into unpacking from global object
-    `import { vault } from 'emera'` -> `const { vault } = window._emeraModules['emera']`
-1. Emera 'imports' (executes) bundled code, gets 'compiled' components
-1. Emera renders those components where required
 
 
 ## First time developing plugins?
