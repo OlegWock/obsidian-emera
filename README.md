@@ -7,8 +7,14 @@ ToDo:
 - [ ] Inline components
 - [ ] Inline js execution?
 - [ ] CSS imports
+- [ ] Error handling
 - [ ] Cleanup & refactoring
 
+
+Features:
+* Inline React components (convenient for wrappers like `<Callout>` or `<Spoiler>`)
+* Complex JSX trees (allows to pass props to component, including nested elements)
+* Inline javascript evaluation (`emjs: 2 + 2`)
 
 
 ## First time developing plugins?

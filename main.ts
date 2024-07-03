@@ -8,7 +8,7 @@ import { EmeraContextProvider } from './src/context';
 import { compileJsxIntoComponent, loadComponents } from './src/bundle';
 import { EMERA_COMPONENT_PREFIX, EMERA_COMPONENTS_REGISTRY, EMERA_JSX_LANG_NAME } from './src/consts';
 import './src/side-effects';
-import { registerCodemirrorMode } from './src/codemirror';
+import { inlideCodePlugin, registerCodemirrorMode } from './src/codemirror';
 
 
 interface PluginSettings {
@@ -37,6 +37,8 @@ export default class EmeraPlugin extends Plugin {
 
         // @ts-ignore
         window.emera = this;
+
+        this.registerEditorExtension(inlideCodePlugin);
 
         this.app.workspace.onLayoutReady(async () => {
             this.isFilesLoaded = true;
