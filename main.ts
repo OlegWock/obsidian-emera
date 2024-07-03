@@ -6,8 +6,9 @@ import { createRoot } from 'react-dom/client';
 import * as React from 'react';
 import { EmeraContextProvider } from './src/context';
 import { bundleFile, importFromString, compileJsxIntoComponent } from './src/bundle';
-import './src/modules';
-import { EMERA_COMPONENTS_REGISTRY } from './src/consts';
+import { EMERA_COMPONENTS_REGISTRY, EMERA_JSX_LANG_NAME, EMERA_MD_LANG_NAME } from './src/consts';
+import './src/side-effects';
+
 
 interface PluginSettings {
     componentsFolder: string;
@@ -28,18 +29,23 @@ export default class EmeraPlugin extends Plugin {
     isFilesLoaded = false;
 
     async onload() {
-        // @ts-ignore
-        window[EMERA_COMPONENTS_REGISTRY] = this.componentsRegistry;
+        this.componentsRegistry = (window as any)[EMERA_COMPONENTS_REGISTRY];
+
         await this.loadSettings();
         this.addSettingTab(new SettingTab(this.app, this));
 
+        console.log('Plugin', this);
+        // @ts-ignore
+        window.emera = this;
+
         this.app.workspace.onLayoutReady(async () => {
             this.isFilesLoaded = true;
+
             const extensions = ['js', 'jsx', 'ts', 'tsx'];
             let indexFile: TFile | null = null;
             for (const ext of extensions) {
                 indexFile = this.app.vault.getFileByPath(`${this.settings.componentsFolder}/index.${ext}`);
-                if (indexFile) break;   
+                if (indexFile) break;
             }
             if (!indexFile) {
                 console.log('Index file not found');
@@ -47,8 +53,8 @@ export default class EmeraPlugin extends Plugin {
             }
 
             const bundledCode = await bundleFile(this, indexFile);
-            console.log('Bundled code');
-            console.log(bundledCode);
+            // console.log('Bundled code');
+            // console.log(bundledCode);
             const registry = await importFromString(bundledCode);
             Object.assign(this.componentsRegistry, registry);
             this.processQueue();
@@ -56,17 +62,13 @@ export default class EmeraPlugin extends Plugin {
 
         this.registerMarkdownPostProcessor(async (el, ctx) => {
             const codeblocks = Array.from(el.querySelectorAll<HTMLElement>('code'));
-            console.log('markdown post', {el, ctx});
             for (const code of codeblocks) {
-                console.log('Checking if need to replace codeblock', code);
-                const emeraComponentIdentifier = code.className.includes('language-emera::') ? (/language-emera::(\w+)/gmi).exec(code.className)?.[1] : null;
+                const emeraComponentIdentifier = code.className.includes(`language-${EMERA_MD_LANG_NAME}::`) ? (new RegExp(`language-${EMERA_MD_LANG_NAME}::(\\w+)`, 'gmi')).exec(code.className)?.[1] : null;
                 if (emeraComponentIdentifier) {
                     // Need to replace this code block
-                    console.log('Requested component', emeraComponentIdentifier);
                     this.queue.push({ type: 'single', name: emeraComponentIdentifier, elementRef: new WeakRef(code), file: this.app.vault.getFileByPath(ctx.sourcePath)! });
                 }
-                if (code.classList.contains('language-emera')) {
-                    console.log('Requested dynamic component');
+                if (code.classList.contains(`language-${EMERA_JSX_LANG_NAME}`)) {
                     this.queue.push({ type: 'tree', elementRef: new WeakRef(code), file: this.app.vault.getFileByPath(ctx.sourcePath)! });
                 }
             }

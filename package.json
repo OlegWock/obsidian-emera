@@ -22,6 +22,9 @@
 	},
 	"dependencies": {
 		"@babel/standalone": "^7.24.7",
+		"@codemirror/lang-javascript": "^0.20.0",
+		"@codemirror/lang-markdown": "^0.20.0",
+		"@codemirror/language-data": "^0.20.0",
 		"@rollup/browser": "^3.29.0",
 		"@types/babel__standalone": "^7.1.7",
 		"@types/react": "^18.3.3",
