@@ -4,8 +4,8 @@ import * as fm from 'framer-motion';
 import * as sc from 'styled-components';
 import * as reactDom from 'react-dom';
 import * as jsxRuntime from 'react/jsx-runtime';
-import { Markdown } from "./Markdown";
-import { useEmeraContext } from "./context";
+import { emeraModule } from './emera-module';
+
 import { EMERA_COMPONENTS_REGISTRY, EMERA_JS_LANG_NAME, EMERA_JSX_LANG_NAME, EMERA_MODULES, EMERA_SCOPES } from "./consts";
 import { registerCodemirrorMode } from './codemirror';
 
@@ -15,10 +15,7 @@ registerCodemirrorMode(EMERA_JS_LANG_NAME, 'js');
 
 // Expose modules
 (window as any)[EMERA_MODULES] = {
-    emera: {
-        Markdown,
-        useEmeraContext,
-    },
+    emera: emeraModule,
     react,
     obsidian,
     'react/jsx-runtime': jsxRuntime,

@@ -1,10 +1,11 @@
-import { rollup } from '@rollup/browser';
+import { rollup, type Plugin as RollupPlugin } from '@rollup/browser';
+import { createFilter } from "@rollup/pluginutils";
+import { compileString as compileSass } from 'sass';
 import { TFile } from 'obsidian';
-import type EmeraPlugin from '../main';
-
 import * as Babel from '@babel/standalone';
-import { EMERA_COMPONENTS_REGISTRY, EMERA_MODULES } from './consts';
 import { ComponentType } from 'react';
+import type EmeraPlugin from '../main';
+import { EMERA_COMPONENTS_REGISTRY, EMERA_MODULES } from './consts';
 
 // @ts-ignore type this
 const t = Babel.packages.types;
@@ -123,57 +124,86 @@ export const transpileCode = (code: string, patchJsxNamespace = false) => {
         throw new Error('Babel failed :(');
     }
     return transpiled;
-}
+};
+
+const rollupVirtualFsPlugin = (plugin: EmeraPlugin, file: TFile): RollupPlugin => ({
+    name: 'virtualFs',
+    resolveId(source, importer) {
+        if (source === file.path) {
+            return source;
+        }
+
+        if (importer && (source.startsWith('./') || source.startsWith('../'))) {
+            const resolvedPath = resolvePath(importer, source);
+            const extensions = ['.js', '.jsx', '.ts', '.tsx', '.css', '.scss', '.sass'];
+
+            if (extensions.some(ext => resolvedPath.endsWith(ext))) {
+                return resolvedPath;
+            }
+
+            for (const ext of extensions) {
+                const pathWithExt = `${resolvedPath}${ext}`;
+                const file = plugin.app.vault.getFileByPath(pathWithExt);
+                if (file) {
+                    return pathWithExt;
+                }
+            }
+        }
+
+        return null;
+    },
+    load(id) {
+        const file = plugin.app.vault.getFileByPath(id);
+        if (!file) {
+            return null;
+        }
+        return plugin.app.vault.read(file);
+    }
+});
+
+const rollupBabelPlugin = (plugin: EmeraPlugin): RollupPlugin => ({
+    name: 'babel-plugin',
+    transform(code, id) {
+        return { code: transpileCode(code) };
+    }
+});
+
+const rollupCssPlugin = (plugin: EmeraPlugin): RollupPlugin => ({
+    name: 'emera-styles',
+    transform(code, id) {
+        const filter = createFilter(["**/*.css", "**/*.scss", "**/*.sass"], [], { resolve: false });
+        if (!filter(id)) return;
+
+        const isSass = id.endsWith('.sass') || id.endsWith('.scss');
+        const transformedCode = isSass ? compileSass(code, {
+        syntax: id.endsWith('.sass') ? 'indented' : 'scss',
+        }).css : code;
+
+        const injectionCode = `
+          (function() {
+            var style = document.createElement('style');
+            style.textContent = ${JSON.stringify(transformedCode)};
+            document.head.appendChild(style);
+          })();
+        `;
+
+        return { code: injectionCode };
+    }
+});
 
 export const bundleFile = async (plugin: EmeraPlugin, file: TFile) => {
     console.log('Bundling', file.path);
     const bundle = await rollup({
         input: file.path,
         plugins: [
-            {
-                name: 'virtualFs',
-                resolveId(source, importer) {
-                    if (source === file.path) {
-                        return source;
-                    }
-
-                    if (importer && (source.startsWith('./') || source.startsWith('../'))) {
-                        const resolvedPath = resolvePath(importer, source);
-                        const extensions = ['.js', '.jsx', '.ts', '.tsx'];
-
-                        if (extensions.some(ext => resolvedPath.endsWith(ext))) {
-                            return resolvedPath;
-                        }
-
-                        for (const ext of extensions) {
-                            const pathWithExt = `${resolvedPath}${ext}`;
-                            const file = plugin.app.vault.getFileByPath(pathWithExt);
-                            if (file) {
-                                return pathWithExt;
-                            }
-                        }
-                    }
-
-                    return null;
-                },
-                load(id) {
-                    const file = plugin.app.vault.getFileByPath(id);
-                    if (!file) {
-                        return null;
-                    }
-                    return plugin.app.vault.read(file);
-                }
-            },
-            {
-                name: 'babel-plugin',
-                transform(code, id) {
-                    return { code: transpileCode(code) };
-                }
-            }
+            rollupVirtualFsPlugin(plugin, file),
+            rollupCssPlugin(plugin),
+            rollupBabelPlugin(plugin),
         ]
     })
     const { output } = await bundle.generate({ format: 'es' });
-
+    console.log('Bundled code');
+    console.log(output[0].code);
     await bundle.close();
     return output[0].code;
 };

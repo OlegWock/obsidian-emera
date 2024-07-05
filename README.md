@@ -3,11 +3,17 @@
 This is a plugin for Obsidian (https://obsidian.md).
 
 ToDo:
-- [ ] Exporting variables & scoping them to current page
-- [ ] CSS imports
+
 - [ ] Error handling
-- [ ] Allow storing data in valut (to allow users to save state between sessions)
+    - [x] When component errors on render
+    - [ ] When trying to access unknown component
+    - [ ] When writing invalid JSX
 - [ ] Cleanup & refactoring
+- [ ] Docs
+- [ ] Release
+
+- [ ] Allow storing data in valut (to allow users to save state between sessions)
+- [ ] Exporting variables & scoping them to current page
 
 
 ## For docs
