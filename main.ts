@@ -1,4 +1,4 @@
-import { Plugin, TFile } from 'obsidian';
+import { App, Plugin, PluginManifest, TFile } from 'obsidian';
 import { SettingTab } from './src/settings';
 import { Fragment as _Fragment, jsxs as _jsxs, jsx as _jsx } from 'react/jsx-runtime';
 import { ComponentType } from 'react';
@@ -8,7 +8,8 @@ import { EmeraContextProvider } from './src/context';
 import { compileJsxIntoComponent, loadComponents } from './src/bundle';
 import { EMERA_COMPONENT_PREFIX, EMERA_COMPONENTS_REGISTRY, EMERA_JSX_LANG_NAME } from './src/consts';
 import './src/side-effects';
-import { inlideCodePlugin, registerCodemirrorMode } from './src/codemirror';
+import { emeraEditorPlugin, registerCodemirrorMode } from './src/codemirror';
+import { renderComponent } from './src/renderer';
 
 
 interface PluginSettings {
@@ -28,6 +29,15 @@ export default class EmeraPlugin extends Plugin {
     componentsRegistry: Record<string, ComponentType<any>> = {};
     queue: QueueElement[] = [];
     isFilesLoaded = false;
+    componentsLoaded: Promise<void>;
+    private resolveComponentsLoaded: VoidFunction;
+
+    constructor(app: App, manifest: PluginManifest) {
+        super(app, manifest);
+        const { resolve, reject, promise } = Promise.withResolvers<void>();
+        this.componentsLoaded = promise;
+        this.resolveComponentsLoaded = resolve;
+    }
 
     async onload() {
         this.componentsRegistry = (window as any)[EMERA_COMPONENTS_REGISTRY];
@@ -38,13 +48,16 @@ export default class EmeraPlugin extends Plugin {
         // @ts-ignore
         window.emera = this;
 
-        this.registerEditorExtension(inlideCodePlugin);
+        this.registerEditorExtension(emeraEditorPlugin(this));
 
         this.app.workspace.onLayoutReady(async () => {
             this.isFilesLoaded = true;
 
             const registry = await loadComponents(this);
             Object.assign(this.componentsRegistry, registry);
+            this.resolveComponentsLoaded();
+            // TODO: we need to attach handlers right away in `onload` and then just re-render them once components are loaded
+            // Otherwise, code components might remain unrendered until user does something to make Obsidian re-render blocks
             this.attachMarkdownProcessors();
         });
     }
@@ -54,38 +67,33 @@ export default class EmeraPlugin extends Plugin {
             registerCodemirrorMode(`${EMERA_COMPONENT_PREFIX}${name}`, 'markdown');
             this.registerMarkdownCodeBlockProcessor(`${EMERA_COMPONENT_PREFIX}${name}`, (src, container, ctx) => {
                 const file = this.app.vault.getFileByPath(ctx.sourcePath)!;
-                container.classList.add('emera-root');
-                const root = createRoot(container);
-                root.render(
-                    React.createElement(EmeraContextProvider, {
-                        value: {
-                            plugin: this,
-                            file,
-                        }
+                const root = renderComponent({
+                    plugin: this,
+                    component,
+                    context: {
+                        file,
                     },
-                        React.createElement(component, {}, src)
-                    )
-                );
+                    container,
+                    children: src
+                });
             });
         });
 
         this.registerMarkdownCodeBlockProcessor(EMERA_JSX_LANG_NAME, async (src, container, ctx) => {
             const file = this.app.vault.getFileByPath(ctx.sourcePath)!;
-            if (src) {
-                const component = await compileJsxIntoComponent(src);
-                container.classList.add('emera-root');
-                const root = createRoot(container);
-                root.render(
-                    React.createElement(EmeraContextProvider, {
-                        value: {
-                            plugin: this,
-                            file,
-                        }
-                    },
-                        React.createElement(component, {})
-                    )
-                );
+            if (!src) {
+                // TODO: render error?
+                return;
             }
+            const component = await compileJsxIntoComponent(src);
+            const root = renderComponent({
+                plugin: this,
+                component,
+                context: {
+                    file,
+                },
+                container,
+            });
         });
     }
 

@@ -1,3 +1,4 @@
+import * as obsidian from 'obsidian';
 import * as react from 'react';
 import * as fm from 'framer-motion';
 import * as sc from 'styled-components';
@@ -18,6 +19,7 @@ registerCodemirrorMode(EMERA_JSX_LANG_NAME, 'jsx');
         useEmeraContext,
     },
     react,
+    obsidian,
     'react/jsx-runtime': jsxRuntime,
     'react-dom': reactDom,
     'framer-motion': fm,

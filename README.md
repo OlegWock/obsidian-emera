@@ -8,13 +8,22 @@ ToDo:
 - [ ] Inline js execution?
 - [ ] CSS imports
 - [ ] Error handling
+- [ ] Allow storing data in valut (to allow users to save state between sessions)
 - [ ] Cleanup & refactoring
 
 
-Features:
+## For docs
+
+Featured:
 * Inline React components (convenient for wrappers like `<Callout>` or `<Spoiler>`)
 * Complex JSX trees (allows to pass props to component, including nested elements)
 * Inline javascript evaluation (`emjs: 2 + 2`)
+
+Notes:
+* Note on how exactly we cache inline JS(X) and how to work around that
+* How to intercept clicks in inline JSX components
+* Can't import modules from node_modules
+* Not recommended to install any modules at all, as they will be put in vault and Obsidian will try to process them all
 
 
 ## First time developing plugins?

@@ -183,7 +183,7 @@ export const importFromString = (code: string) => {
     return import(encodedCode);
 };
 
-export const compileJsxIntoComponent = async (jsx: string) => {
+export const compileJsxIntoComponent = async (jsx: string): Promise<ComponentType<{}>> => {
     const source = `export default () => (<>${jsx}</>);`;
     const transpiled = transpileCode(source, true);
     console.log(transpiled);
