@@ -30,7 +30,7 @@ registerCodemirrorMode(EMERA_JS_LANG_NAME, 'js');
     get(target, p: string, receiver) {
         const component = Reflect.get(target, p, receiver);
         if (!component) {
-            throw new Error(`You're trying to render component ${p}, but it's missing from registry. Make sure you exported it from you index.js file.`)
+            throw new Error(`You're trying to render component ${p}, but it's missing from registry. Make sure you exported it from index.js file.`)
         }
         return component;
     },

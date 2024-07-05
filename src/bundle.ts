@@ -176,7 +176,7 @@ const rollupCssPlugin = (plugin: EmeraPlugin): RollupPlugin => ({
 
         const isSass = id.endsWith('.sass') || id.endsWith('.scss');
         const transformedCode = isSass ? compileSass(code, {
-        syntax: id.endsWith('.sass') ? 'indented' : 'scss',
+            syntax: id.endsWith('.sass') ? 'indented' : 'scss',
         }).css : code;
 
         const injectionCode = `
@@ -202,8 +202,8 @@ export const bundleFile = async (plugin: EmeraPlugin, file: TFile) => {
         ]
     })
     const { output } = await bundle.generate({ format: 'es' });
-    console.log('Bundled code');
-    console.log(output[0].code);
+    // console.log('Bundled code');
+    // console.log(output[0].code);
     await bundle.close();
     return output[0].code;
 };
@@ -234,8 +234,6 @@ export const loadComponents = async (plugin: EmeraPlugin): Promise<Record<string
     }
 
     const bundledCode = await bundleFile(plugin, indexFile);
-    // console.log('Bundled code');
-    // console.log(bundledCode);
     const registry = await importFromString(bundledCode);
     return registry;
 };

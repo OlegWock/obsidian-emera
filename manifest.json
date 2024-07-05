@@ -3,7 +3,7 @@
 	"name": "Emera",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Allows you to use custom React components in Obsidian. Kinda like MDX",
+	"description": "Allows you to use custom React components and inline JavaScript in Obsidian. Kinda like MDX",
 	"author": "OlegWock",
 	"authorUrl": "https://sinja.io",
 	"fundingUrl": "https://sinja.io/support",

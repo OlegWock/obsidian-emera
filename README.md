@@ -4,12 +4,13 @@ This is a plugin for Obsidian (https://obsidian.md).
 
 ToDo:
 
-- [ ] Allow storing data in valut (to allow users to save state between sessions)
 - [ ] Cleanup & refactoring
 - [ ] Docs
+    - [ ] Emera module API
 - [ ] Release
 
 - [ ] Exporting variables & scoping them to current page
+- [ ] Find a way to assign reliable ids for code blocks and allow making block-specific storage cells
 
 
 ## For docs

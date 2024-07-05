@@ -9,6 +9,7 @@ import { emeraEditorPlugin, registerCodemirrorMode } from './src/codemirror';
 import { renderComponent } from './src/renderer';
 import { eventBus } from './src/events';
 import { ErrorAlert } from './src/ErrorBoundary';
+import { createEmeraStorage, EmeraStorage } from './src/emera-module/storage';
 
 
 interface PluginSettings {
@@ -31,6 +32,7 @@ export default class EmeraPlugin extends Plugin {
     isFilesLoaded = false;
     componentsLoaded: Promise<void>;
     private resolveComponentsLoaded: VoidFunction;
+    storage: EmeraStorage;
 
     constructor(app: App, manifest: PluginManifest) {
         super(app, manifest);
@@ -43,6 +45,8 @@ export default class EmeraPlugin extends Plugin {
         this.componentsRegistry = (window as any)[EMERA_COMPONENTS_REGISTRY];
 
         await this.loadSettings();
+
+        this.storage = createEmeraStorage(this);
         this.addSettingTab(new SettingTab(this.app, this));
 
         // @ts-ignore
@@ -53,7 +57,7 @@ export default class EmeraPlugin extends Plugin {
 
         this.app.workspace.onLayoutReady(async () => {
             this.isFilesLoaded = true;
-
+            await this.storage.init();
             const registry = await loadComponents(this);
             Object.assign(this.componentsRegistry, registry);
             this.resolveComponentsLoaded();
@@ -174,7 +178,7 @@ export default class EmeraPlugin extends Plugin {
     }
 
     onunload() {
-
+        this.storage.destroy();
     }
 
     async loadSettings() {
