@@ -1,5 +1,5 @@
 import { syntaxTree } from "@codemirror/language";
-import { RangeSetBuilder } from "@codemirror/state";
+import { RangeSetBuilder, StateEffect } from "@codemirror/state";
 import {
     Decoration,
     DecorationSet,
@@ -17,8 +17,11 @@ import { createRoot, Root } from "react-dom/client";
 import { renderComponent } from "./renderer";
 import { compileJsxIntoComponent } from "./bundle";
 import { ComponentType } from "react";
+import { eventBus } from "./events";
 
 const CodeMirror = (window as any).CodeMirror;
+
+const redecorateTrigger = StateEffect.define<null>()
 
 export const emeraEditorPlugin = (plugin: EmeraPlugin) => [
     ViewPlugin.fromClass(
@@ -27,20 +30,37 @@ export const emeraEditorPlugin = (plugin: EmeraPlugin) => [
             jsCache: Record<string, InlineJsWidget>;
             jsxCache: Record<string, InlineJsxWidget>;
             decorations: DecorationSet;
+            view: EditorView;
 
             constructor(view: EditorView) {
+                this.view = view;
                 this.jsCache = {};
                 this.jsxCache = {};
                 this.decorations = this.buildDecorations(view);
+
+                eventBus.on('onComponentsReloaded', this.onComponentsReloaded);
             }
 
             update(update: ViewUpdate) {
-                if (update.docChanged || update.viewportChanged || update.selectionSet) {
+                const manualRefresh = update.transactions.some(tr => tr.effects.some(effect => effect.is(redecorateTrigger)));
+                if (manualRefresh) console.log('Manual refresh of editor decorations')
+                if (manualRefresh || update.docChanged || update.viewportChanged || update.selectionSet) {
                     this.decorations = this.buildDecorations(update.view);
                 }
             }
 
-            destroy() { }
+            destroy() {
+                eventBus.off('onComponentsReloaded', this.onComponentsReloaded);
+            }
+
+            onComponentsReloaded = () => {
+                console.log('Components reloaded, wiping inline JSX cache');
+                this.jsxCache = {};
+                this.view.dispatch({
+                    effects: [redecorateTrigger.of(null)],
+                });
+            };
+
 
             isCursorInsideNode(view: EditorView, node: SyntaxNodeRef) {
                 const state = view.state;

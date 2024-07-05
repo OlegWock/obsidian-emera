@@ -3,7 +3,6 @@
 This is a plugin for Obsidian (https://obsidian.md).
 
 ToDo:
-- [ ] Allow manual components reloading
 - [ ] Exporting variables & scoping them to current page
 - [ ] CSS imports
 - [ ] Error handling

@@ -1,5 +1,5 @@
 import type MyPlugin from "main";
-import { PluginSettingTab, App, Setting } from "obsidian";
+import { PluginSettingTab, App, Setting, Notice } from "obsidian";
 
 export class SettingTab extends PluginSettingTab {
     plugin: MyPlugin;
@@ -24,5 +24,15 @@ export class SettingTab extends PluginSettingTab {
                     this.plugin.settings.componentsFolder = value;
                     await this.plugin.saveSettings();
                 }));
+        new Setting(containerEl)
+            .setName('Refresh components')
+            .setDesc('Click this if you made any changes to components after opening Obsidian')
+            .addButton(button => button
+                .setButtonText('Refresh')
+                .onClick(async () => {
+                   await this.plugin.refreshComponents();
+                   new Notice('Emera components were reloaded.');
+                })
+            );
     }
 }
