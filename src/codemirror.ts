@@ -18,6 +18,7 @@ import { renderComponent } from "./renderer";
 import { compileJsxIntoComponent } from "./bundle";
 import { ComponentType } from "react";
 import { eventBus } from "./events";
+import { LoadingInline } from "./LoadingInline";
 
 const CodeMirror = (window as any).CodeMirror;
 
@@ -165,10 +166,7 @@ export class InlineJsWidget extends WidgetType {
 
     toDOM(view: EditorView): HTMLElement {
         const span = document.createElement("span");
-        span.style.background = 'hsla(var(--color-accent-hsl), 0.15)';
-        span.style.color = 'var(--color-accent)';
-        span.style.padding = '2px 6px';
-        span.style.borderRadius = '4px';
+        span.classList.add('emera-inline-js');
         span.innerText = this.error ? `❗️${this.error}` : this.evaluated;
         span.addEventListener('click', (e) => {
             e.preventDefault();
@@ -205,11 +203,9 @@ export class InlineJsxWidget extends WidgetType {
                 });
             });
             this.rootElement = span;
-            this.reactRoot = createRoot(span);
-            renderComponent({
-                // TODO: replace this with loading component
-                component: () => 'Loading...',
-                container: this.reactRoot,
+            this.reactRoot = renderComponent({
+                component: LoadingInline,
+                container: this.rootElement,
                 plugin: this.plugin,
                 context: {
                     file: this.file,
@@ -222,7 +218,6 @@ export class InlineJsxWidget extends WidgetType {
                     this.component = component;
                     if (this.reactRoot) {
                         renderComponent({
-                            // TODO: replace this with loading component
                             component,
                             container: this.reactRoot,
                             plugin: this.plugin,

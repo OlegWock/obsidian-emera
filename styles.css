@@ -11,3 +11,29 @@
 .emera-error-boundary pre {
     font-size: 0.85rem;
 }
+
+.emera-empty-block {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    background: var(--color-base-20);
+    color: var(--color-base-50);
+    font-size: 0.85rem;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.emera-loading-inline {
+    padding: 3px 8px;
+    border-radius: 0.5rem;
+    background: var(--color-base-20);
+    color: var(--color-base-50);
+    font-size: 0.85rem;
+    display: inline-flex;
+}
+
+.emera-inline-js {
+    background: hsla(var(--color-accent-hsl), 0.15);
+    color: var(--color-accent);
+    padding: 2px 6px;
+    border-radius: 4px;
+}

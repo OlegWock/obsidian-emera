@@ -3,13 +3,15 @@ import { SettingTab } from './src/settings';
 import { Fragment as _Fragment, jsxs as _jsxs, jsx as _jsx } from 'react/jsx-runtime';
 import { ComponentType, createElement } from 'react';
 import { compileJsxIntoComponent, loadComponents } from './src/bundle';
-import { EMERA_COMPONENT_PREFIX, EMERA_COMPONENTS_REGISTRY, EMERA_JS_LANG_NAME, EMERA_JSX_LANG_NAME } from './src/consts';
+import { EMERA_COMPONENT_PREFIX, EMERA_COMPONENTS_REGISTRY, EMERA_INLINE_JS_PREFIX, EMERA_INLINE_JSX_PREFIX, EMERA_JS_LANG_NAME, EMERA_JSX_LANG_NAME } from './src/consts';
 import './src/side-effects';
 import { emeraEditorPlugin, registerCodemirrorMode } from './src/codemirror';
 import { renderComponent } from './src/renderer';
 import { eventBus } from './src/events';
 import { ErrorAlert } from './src/ErrorBoundary';
 import { createEmeraStorage, EmeraStorage } from './src/emera-module/storage';
+import { EmptyBlock } from './src/EmptyBlock';
+import { LoadingInline } from './src/LoadingInline';
 
 
 interface PluginSettings {
@@ -42,15 +44,14 @@ export default class EmeraPlugin extends Plugin {
     }
 
     async onload() {
+        // @ts-ignore
+        window.emera = this;
+
         this.componentsRegistry = (window as any)[EMERA_COMPONENTS_REGISTRY];
 
         await this.loadSettings();
-
-        this.storage = createEmeraStorage(this);
         this.addSettingTab(new SettingTab(this.app, this));
-
-        // @ts-ignore
-        window.emera = this;
+        this.storage = createEmeraStorage(this);
 
         this.registerEditorExtension(emeraEditorPlugin(this));
         this.attachMarkdownProcessors();
@@ -107,17 +108,19 @@ export default class EmeraPlugin extends Plugin {
         this.registerMarkdownCodeBlockProcessor(EMERA_JSX_LANG_NAME, async (src, container, ctx) => {
             await this.componentsLoaded;
             const file = this.app.vault.getFileByPath(ctx.sourcePath)!;
-            if (!src) {
-                // TODO: render error or at least some note for user
-                return;
+            let component: ComponentType<{}>;
+
+
+            if (src.trim()) {
+                try {
+                    component = await compileJsxIntoComponent(src);
+                } catch (error) {
+                    component = () => createElement(ErrorAlert, { error });
+                }
+            } else {
+                component = EmptyBlock;
             }
 
-            let component: ComponentType<{}>;
-            try {
-                component = await compileJsxIntoComponent(src);
-            } catch (error) {
-                component = () => createElement(ErrorAlert, { error });
-            }
             const root = renderComponent({
                 plugin: this,
                 component,
@@ -140,7 +143,7 @@ export default class EmeraPlugin extends Plugin {
         });
 
         this.registerMarkdownCodeBlockProcessor(EMERA_JS_LANG_NAME, async (src, container, ctx) => {
-            console.log('Processing code block', src, ctx);
+            // console.log('Processing code block', src, ctx);
             // TODO: we need to know how many code blocks there is on page an which one of them is current one.
             // This doesn't seem possible with `registerMarkdownCodeBlockProcessor`, but we should be able to 
             // make our own CodeMirror extension which will replace emjs blocks
@@ -153,6 +156,70 @@ export default class EmeraPlugin extends Plugin {
             // Render generic 'Emera code' in place of code block
             // Maybe allow user exporting string variable `emeraBlockName` which will be used in placeholder for easier navigation
             container.innerText = '[Emera code]';
+        });
+
+        this.registerMarkdownPostProcessor((el, ctx) => {
+            const file = this.app.vault.getFileByPath(ctx.sourcePath)!;
+            const code = Array.from(el.querySelectorAll('code'));
+            code.filter(el => el.parentElement!.tagName !== 'PRE').forEach(async (el) => {
+                const nodeContent = el.textContent?.trim();
+                if (!nodeContent) return;
+
+                console.log('Processing inline code', el, nodeContent);
+
+                // TODO: Probably want to cache this
+                const span = document.createElement("span");
+                if (nodeContent.startsWith(EMERA_INLINE_JS_PREFIX)) {
+                    console.log('Detected inline JS');
+                    const code = nodeContent.slice(EMERA_INLINE_JS_PREFIX.length);
+                    span.classList.add('emera-inline-js');
+                    let evaluated: any;
+                    try {
+                        evaluated = eval?.(code);
+                    } catch (err) {
+                        evaluated = `❗️${err.toString()}`;
+                    }
+                    span.textContent = evaluated;
+
+                } else if (nodeContent.startsWith(EMERA_INLINE_JSX_PREFIX)) {
+                    console.log('Detected inline JSX');
+                    const code = nodeContent.slice(EMERA_INLINE_JSX_PREFIX.length);
+                    const reactRoot = renderComponent({
+                        component: LoadingInline,
+                        container: span,
+                        plugin: this,
+                        context: {
+                            file,
+                        },
+                    });
+
+                    this.componentsLoaded.then(() => compileJsxIntoComponent(code)).then(component => {
+                        renderComponent({
+                            component,
+                            container: reactRoot,
+                            plugin: this,
+                            context: {
+                                file,
+                            },
+                        });
+
+                        eventBus.on('onComponentsReloaded', () => {
+                            renderComponent({
+                                component,
+                                container: reactRoot,
+                                plugin: this,
+                                context: {
+                                    file,
+                                },
+                            });
+                        });
+                    });
+                } else {
+                    return;
+                }
+
+                el.replaceWith(span);
+            });
         });
     }
 
