@@ -91,7 +91,6 @@ export const emeraEditorPlugin = (plugin: EmeraPlugin) => [
                             if (!node.type.name.startsWith('inline-code')) return;
                             if (this.isCursorInsideNode(view, node)) return;
                             const nodeContent = view.state.doc.sliceString(node.from, node.to);
-                            console.log('Handling code block', {node, nodeContent});
                             let type: 'js' | 'jsx';
                             let code: string;
                             if (nodeContent.startsWith(EMERA_INLINE_JS_PREFIX)) {
@@ -132,11 +131,16 @@ export const emeraEditorPlugin = (plugin: EmeraPlugin) => [
 export class InlineJsWidget extends WidgetType {
     code: string;
     evaluated: any;
+    error: string | null = null;
 
     constructor(code: string) {
         super();
         this.code = code;
-        this.evaluated = eval?.(code);
+        try {
+            this.evaluated = eval?.(code);
+        } catch (err) {
+            this.error = err.toString();
+        }
     }
 
     toDOM(view: EditorView): HTMLElement {
@@ -145,7 +149,7 @@ export class InlineJsWidget extends WidgetType {
         span.style.color = 'var(--color-accent)';
         span.style.padding = '2px 6px';
         span.style.borderRadius = '4px';
-        span.innerText = this.evaluated;
+        span.innerText = this.error ? `❗️${this.error}` : this.evaluated;
         span.addEventListener('click', (e) => {
             e.preventDefault();
             view.dispatch({

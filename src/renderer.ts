@@ -2,6 +2,7 @@ import { ComponentType, createElement, ReactNode } from "react";
 import { EmeraContextProvider, EmeraContextType } from "./context";
 import { createRoot, Root } from "react-dom/client";
 import EmeraPlugin from "../main";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 export type RenderComponentParams<P extends Record<string, any>> = {
     container: HTMLElement | Root,
@@ -28,7 +29,9 @@ export const renderComponent = <P extends Record<string, any>>({ component, cont
                 plugin,
             },
         },
-            createElement(component, props, children)
+            createElement(ErrorBoundary, {},
+                createElement(component, props, children)
+            )
         )
     );
 

@@ -4,8 +4,7 @@ This is a plugin for Obsidian (https://obsidian.md).
 
 ToDo:
 - [ ] Allow manual components reloading
-- [ ] Inline components
-- [ ] Inline js execution?
+- [ ] Exporting variables & scoping them to current page
 - [ ] CSS imports
 - [ ] Error handling
 - [ ] Allow storing data in valut (to allow users to save state between sessions)
@@ -14,9 +13,11 @@ ToDo:
 
 ## For docs
 
-Featured:
-* Inline React components (convenient for wrappers like `<Callout>` or `<Spoiler>`)
+Features:
+* You can use React components
 * Complex JSX trees (allows to pass props to component, including nested elements)
+* Shorthand syntax (convenient for wrappers like `<Callout>` or `<Spoiler>`)
+* Inline React components
 * Inline javascript evaluation (`emjs: 2 + 2`)
 
 Notes:
