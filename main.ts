@@ -4,7 +4,6 @@ import { Fragment as _Fragment, jsxs as _jsxs, jsx as _jsx } from 'react/jsx-run
 import { ComponentType, createElement } from 'react';
 import { compileJsxIntoComponent, loadComponents } from './src/bundle';
 import { EMERA_COMPONENT_PREFIX, EMERA_COMPONENTS_REGISTRY, EMERA_INLINE_JS_PREFIX, EMERA_INLINE_JSX_PREFIX, EMERA_JS_LANG_NAME, EMERA_JSX_LANG_NAME } from './src/consts';
-import './src/side-effects';
 import { emeraEditorPlugin, registerCodemirrorMode } from './src/codemirror';
 import { renderComponent } from './src/renderer';
 import { eventBus } from './src/events';
@@ -12,6 +11,7 @@ import { ErrorAlert } from './src/ErrorBoundary';
 import { createEmeraStorage, EmeraStorage } from './src/emera-module/storage';
 import { EmptyBlock } from './src/EmptyBlock';
 import { LoadingInline } from './src/LoadingInline';
+import './src/side-effects';
 
 
 interface PluginSettings {
@@ -226,6 +226,7 @@ export default class EmeraPlugin extends Plugin {
     refreshEditors = () => {
         this.app.workspace.iterateAllLeaves((leaf) => {
             if (leaf.view && leaf.view instanceof MarkdownView) {
+                leaf.view.previewMode.rerender(true); 
                 leaf.view.editor.refresh();
             }
         });
