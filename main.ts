@@ -1,13 +1,14 @@
 import { App, MarkdownView, Plugin, PluginManifest, TFile } from 'obsidian';
 import { SettingTab } from './src/settings';
 import { Fragment as _Fragment, jsxs as _jsxs, jsx as _jsx } from 'react/jsx-runtime';
-import { ComponentType } from 'react';
+import { ComponentType, createElement } from 'react';
 import { compileJsxIntoComponent, loadComponents } from './src/bundle';
 import { EMERA_COMPONENT_PREFIX, EMERA_COMPONENTS_REGISTRY, EMERA_JS_LANG_NAME, EMERA_JSX_LANG_NAME } from './src/consts';
 import './src/side-effects';
 import { emeraEditorPlugin, registerCodemirrorMode } from './src/codemirror';
 import { renderComponent } from './src/renderer';
 import { eventBus } from './src/events';
+import { ErrorAlert } from './src/ErrorBoundary';
 
 
 interface PluginSettings {
@@ -106,7 +107,13 @@ export default class EmeraPlugin extends Plugin {
                 // TODO: render error or at least some note for user
                 return;
             }
-            const component = await compileJsxIntoComponent(src);
+
+            let component: ComponentType<{}>;
+            try {
+                component = await compileJsxIntoComponent(src);
+            } catch (error) {
+                component = () => createElement(ErrorAlert, { error });
+            }
             const root = renderComponent({
                 plugin: this,
                 component,

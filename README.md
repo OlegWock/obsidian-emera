@@ -4,15 +4,11 @@ This is a plugin for Obsidian (https://obsidian.md).
 
 ToDo:
 
-- [ ] Error handling
-    - [x] When component errors on render
-    - [ ] When trying to access unknown component
-    - [ ] When writing invalid JSX
+- [ ] Allow storing data in valut (to allow users to save state between sessions)
 - [ ] Cleanup & refactoring
 - [ ] Docs
 - [ ] Release
 
-- [ ] Allow storing data in valut (to allow users to save state between sessions)
 - [ ] Exporting variables & scoping them to current page
 
 
