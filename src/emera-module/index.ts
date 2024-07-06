@@ -4,7 +4,6 @@ import { useStorage } from "./storage";
 
 export const emeraModule = {
     Markdown,
-
     useEmeraContext,
     useStorage,
 }

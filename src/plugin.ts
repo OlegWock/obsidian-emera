@@ -63,6 +63,7 @@ export class EmeraPlugin extends Plugin {
             Object.assign(this.componentsRegistry, registry);
             this.resolveComponentsLoaded();
             eventBus.emit('onComponentsLoaded');
+            // TODO: support namespaces
             Object.keys(this.componentsRegistry).forEach((name) => {
                 this.attachShorthandNotationProcessor(name);
             });
@@ -78,6 +79,7 @@ export class EmeraPlugin extends Plugin {
         registerCodemirrorMode(`${EMERA_COMPONENT_PREFIX}${name}`, 'markdown');
         this.registerMarkdownCodeBlockProcessor(`${EMERA_COMPONENT_PREFIX}${name}`, (src, container, ctx) => {
             const file = this.app.vault.getFileByPath(ctx.sourcePath)!;
+            // TODO: support namespaces
             const component = this.componentsRegistry[name];
             const root = renderComponent({
                 plugin: this,
@@ -237,6 +239,7 @@ export class EmeraPlugin extends Plugin {
     refreshComponents = async () => {
         const registry = await loadComponents(this);
         Object.assign(this.componentsRegistry, registry);
+        // TODO: support namespaces
         Object.keys(this.componentsRegistry).forEach((name) => {
             this.attachShorthandNotationProcessor(name);
         });

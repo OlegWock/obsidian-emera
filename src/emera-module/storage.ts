@@ -1,9 +1,10 @@
 import { atom, Atom, getDefaultStore, useAtom } from "jotai";
 import type { EmeraPlugin } from '../plugin';
 import { useEmeraContext } from "./context";
+import { normalizePath } from "obsidian";
 
 export const createEmeraStorage = (plugin: EmeraPlugin) => {
-    const filePath = `${plugin.settings.componentsFolder}/storage.json`;
+    const filePath = normalizePath(`${plugin.settings.componentsFolder}/storage.json`);
     let state: Record<string, any> = {};
     let flushTimerId: null | ReturnType<typeof setTimeout> = null;
     const atoms: Record<string, Atom<any>> = {};

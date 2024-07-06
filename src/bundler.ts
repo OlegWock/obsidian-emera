@@ -1,7 +1,7 @@
 import { rollup, type Plugin as RollupPlugin } from '@rollup/browser';
 import { createFilter } from "@rollup/pluginutils";
 import { compileString as compileSass } from 'sass';
-import { TFile } from 'obsidian';
+import { normalizePath, TFile } from 'obsidian';
 import * as Babel from '@babel/standalone';
 import { ComponentType } from 'react';
 import type { EmeraPlugin } from './plugin';
@@ -80,14 +80,39 @@ function jsxNamespacer() {
             CallExpression(path: any) {
                 if (['_jsxs', '_jsx'].includes(path.node.callee.name)) {
                     const firstArg = path.node.arguments[0];
-                    if (t.isIdentifier(firstArg) && !['_Fragment', 'Fragment'].includes(firstArg.name)) {
-
+                    if (t.isIdentifier(firstArg)) {
                         const binding = path.scope.getBinding(firstArg.name);
-                        if (!binding) {
+                        console.log('Binding for', firstArg.name, binding);
+                        if (!binding && !['_Fragment', 'Fragment'].includes(firstArg.name)) {
                             path.node.arguments[0] = t.memberExpression(
                                 t.identifier(`window.${EMERA_COMPONENTS_REGISTRY}`),
                                 firstArg
                             );
+                        }
+                    } else if (t.isMemberExpression(firstArg)) {
+                        let currentNode = firstArg;
+                        const parts = [];
+                        while (t.isMemberExpression(currentNode)) {
+                            parts.unshift(currentNode.property.name);
+                            currentNode = currentNode.object;
+                        }
+                        if (t.isIdentifier(currentNode)) {
+                            parts.unshift(currentNode.name);
+                        }
+
+                        if (parts[0] === `window.${EMERA_COMPONENTS_REGISTRY}`) {
+                            return;
+                        }
+
+                        const binding = path.scope.getBinding(parts[0]);
+                        if (!binding) {
+                            const newExpression = parts.reduce((acc, part, index) => {
+                                return t.memberExpression(
+                                    index === 0 ? t.identifier(`window.${EMERA_COMPONENTS_REGISTRY}`) : acc,
+                                    t.identifier(part)
+                                );
+                            }, null);
+                            path.node.arguments[0] = newExpression;
                         }
                     }
                 }
@@ -215,7 +240,11 @@ export const importFromString = (code: string) => {
 
 export const compileJsxIntoComponent = async (jsx: string): Promise<ComponentType<{}>> => {
     const source = `export default () => (<>${jsx}</>);`;
+    // console.log('Original JSX');
+    // console.log(jsx);
     const transpiled = transpileCode(source, true);
+    // console.log('Compiled JSX code');
+    // console.log(transpiled);
     const { default: component } = await importFromString(transpiled);
     return component;
 };
@@ -224,7 +253,7 @@ export const loadComponents = async (plugin: EmeraPlugin): Promise<Record<string
     const extensions = ['js', 'jsx', 'ts', 'tsx'];
     let indexFile: TFile | null = null;
     for (const ext of extensions) {
-        indexFile = plugin.app.vault.getFileByPath(`${plugin.settings.componentsFolder}/index.${ext}`);
+        indexFile = plugin.app.vault.getFileByPath(normalizePath(`${plugin.settings.componentsFolder}/index.${ext}`));
         if (indexFile) break;
     }
     if (!indexFile) {
@@ -233,6 +262,8 @@ export const loadComponents = async (plugin: EmeraPlugin): Promise<Record<string
     }
 
     const bundledCode = await bundleFile(plugin, indexFile);
+    // TODO: this might fail silently (with just error in console) if user tries to import global module
+    // that isn't provided by Emera. We'll need to show some notice at least.
     const registry = await importFromString(bundledCode);
     return registry;
 };

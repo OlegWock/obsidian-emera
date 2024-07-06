@@ -1,8 +1,9 @@
-import { App, MarkdownRenderer } from 'obsidian';
-import { useEffect, useRef } from "react";
+import { MarkdownRenderer } from 'obsidian';
+import { ComponentProps, useEffect, useRef } from "react";
 import { useEmeraContext } from './context';
+import { mergeRefs } from "react-merge-refs";
 
-export const Markdown = ({children}: {children: string}) => {
+export const Markdown = ({ children, ref, ...props }: { children: string } & Omit<ComponentProps<"div">, "children">) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const ctx = useEmeraContext();
 
@@ -17,5 +18,5 @@ export const Markdown = ({children}: {children: string}) => {
             ctx.plugin,
         );
     }, []);
-    return <div ref={containerRef}></div>;
+    return <div {...props} ref={mergeRefs([containerRef, ref])}></div>;
 };
