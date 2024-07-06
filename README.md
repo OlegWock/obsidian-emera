@@ -6,6 +6,8 @@ This is a plugin for Obsidian (https://obsidian.md) which enables you to use rea
 
 ---
 
+## Table of contents
+
 * [Features](#features)
 * [Roadmap](#roadmap)
 * [How to install](#how-to-install)
