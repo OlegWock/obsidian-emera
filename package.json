@@ -25,6 +25,7 @@
 		"@codemirror/lang-javascript": "^0.20.0",
 		"@codemirror/lang-markdown": "^0.20.0",
 		"@codemirror/language-data": "^0.20.0",
+		"@emotion/is-prop-valid": "^1.2.2",
 		"@rollup/browser": "^3.29.0",
 		"@types/babel__standalone": "^7.1.7",
 		"@types/react": "^18.3.3",
