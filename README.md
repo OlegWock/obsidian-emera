@@ -29,7 +29,7 @@ This is a plugin for Obsidian (https://obsidian.md) which enables you to use rea
 * Inline JS execution (in progress).
 * Supports both reading and live preview modes.
 * Components are loaded from JS files, so you can use your favorite editor.
-* Emera supports TypeScript, ES modules (local only), and importing CSS/SASS files. 
+* Emera supports TypeScript, ES modules (local only), and direct import of CSS files. 
 
 ## Roadmap
 
@@ -113,7 +113,7 @@ Emera cares only about entrypoint (`index.js` file). As long as you export somet
 
 You probably wouldn't want to do this, as there is no type definitions (and you can't install them, see [limitations](#limitations)), but if you really want – you can.
 
-* Import CSS/SASS files
+* Import CSS files
 
 Imported files will be injected into page. But, unfortunately, no CSS modules support.
 

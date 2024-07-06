@@ -1,6 +1,5 @@
 import { rollup, type Plugin as RollupPlugin } from '@rollup/browser';
 import { createFilter } from "@rollup/pluginutils";
-import { compileString as compileSass } from 'sass';
 import { normalizePath, TFile } from 'obsidian';
 import * as Babel from '@babel/standalone';
 import { ComponentType } from 'react';
@@ -160,7 +159,7 @@ const rollupVirtualFsPlugin = (plugin: EmeraPlugin, file: TFile): RollupPlugin =
 
         if (importer && (source.startsWith('./') || source.startsWith('../'))) {
             const resolvedPath = resolvePath(importer, source);
-            const extensions = ['.js', '.jsx', '.ts', '.tsx', '.css', '.scss', '.sass'];
+            const extensions = ['.js', '.jsx', '.ts', '.tsx', '.css' ];
 
             if (extensions.some(ext => resolvedPath.endsWith(ext))) {
                 return resolvedPath;
@@ -196,18 +195,13 @@ const rollupBabelPlugin = (plugin: EmeraPlugin): RollupPlugin => ({
 const rollupCssPlugin = (plugin: EmeraPlugin): RollupPlugin => ({
     name: 'emera-styles',
     transform(code, id) {
-        const filter = createFilter(["**/*.css", "**/*.scss", "**/*.sass"], [], { resolve: false });
+        const filter = createFilter(["**/*.css"], [], { resolve: false });
         if (!filter(id)) return;
-
-        const isSass = id.endsWith('.sass') || id.endsWith('.scss');
-        const transformedCode = isSass ? compileSass(code, {
-            syntax: id.endsWith('.sass') ? 'indented' : 'scss',
-        }).css : code;
 
         const injectionCode = `
           (function() {
             var style = document.createElement('style');
-            style.textContent = ${JSON.stringify(transformedCode)};
+            style.textContent = ${JSON.stringify(code)};
             document.head.appendChild(style);
           })();
         `;
