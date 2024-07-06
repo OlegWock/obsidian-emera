@@ -43,7 +43,7 @@ export const five = 5;
 ```
 ````
 
-And later on same page ```emjs:two+five``` which will be evaluated to `7`.
+And later on same page `emjs:two+five` (wrapped in backticks) which will be evaluated to `7`.
 
 * Support for canvas
 
@@ -101,7 +101,7 @@ And for more complex cases there is support for JSX. JSX is automatically wrappe
 ```
 ````
 
-JavaScript evaluation is still in development and fairly limited. Currently it's only possible to evaluate inline JS, like this: ```emjs:new Date()```. Inline JS evaluated in global scope, so you can access, for example, `window.app`, but code doesn't have access to any of your exported functions/components.
+JavaScript evaluation is still in development and fairly limited. Currently it's only possible to evaluate inline JS, like this: `emjs:new Date()` (wrapped in backticks). Inline JS evaluated in global scope, so you can access, for example, `window.app`, but code doesn't have access to any of your exported functions/components.
 
 ### Supported features
 
