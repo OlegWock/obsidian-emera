@@ -1,11 +1,11 @@
 import { TFile } from "obsidian";
-import type EmeraPlugin from "../../main";
+import type { EmeraPlugin } from '../plugin';
 import { createStrictContext } from "./utils";
 import type { EmeraStorage } from "./storage";
 
 export type EmeraContextType = {
     plugin: EmeraPlugin,
-    file: TFile | null,
+    file: TFile,
     storage: EmeraStorage,
 };
 

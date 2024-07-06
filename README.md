@@ -4,11 +4,11 @@ This is a plugin for Obsidian (https://obsidian.md).
 
 ToDo:
 
-- [ ] Cleanup & refactoring
 - [ ] Docs
     - [ ] Emera module API
 - [ ] Release
 
+- [ ] Allow accessing frontmatter in components and inline js
 - [ ] Exporting variables & scoping them to current page
 - [ ] Find a way to assign reliable ids for code blocks and allow making block-specific storage cells
 

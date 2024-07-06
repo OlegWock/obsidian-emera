@@ -1,8 +1,8 @@
 import { ComponentType, createElement, ReactNode } from "react";
 import { EmeraContextProvider, EmeraContextType } from "./emera-module/context";
 import { createRoot, Root } from "react-dom/client";
-import EmeraPlugin from "../main";
-import { ErrorBoundary } from "./ErrorBoundary";
+import type { EmeraPlugin } from './plugin';
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 export type RenderComponentParams<P extends Record<string, any>> = {
     container: HTMLElement | Root,

@@ -1,13 +1,5 @@
-
-// How this should work:
-// * User component calls hook `useEmeraStorage<T>(key: string, defaultValue: T)`
-// * Hook creates an atom under the hood and returns standart [value, setValue] functions
-// * When plugin is initialized, it will load file <components folder>/storage.json (or maybe store it in .obsidian??)
-// and put its content into memory
-// * When atom value changes, it will update value in memory and also write it to json file (maybe buffered)
-
 import { atom, Atom, getDefaultStore, useAtom } from "jotai";
-import type EmeraPlugin from "../../main";
+import type { EmeraPlugin } from '../plugin';
 import { useEmeraContext } from "./context";
 
 export const createEmeraStorage = (plugin: EmeraPlugin) => {
@@ -24,7 +16,7 @@ export const createEmeraStorage = (plugin: EmeraPlugin) => {
             console.log('File content', content);
             state = JSON.parse(content);
         }
-        console.log('Initiated storage with state', state);
+        console.log('Initiated emera storage with state', state);
     };
 
     const destroy = () => {

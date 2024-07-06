@@ -11,18 +11,102 @@ import {
 } from "@codemirror/view";
 import { SyntaxNodeRef } from '@lezer/common';
 import { EMERA_INLINE_JS_PREFIX, EMERA_INLINE_JSX_PREFIX } from "./consts";
-import type EmeraPlugin from "../main";
+import type { EmeraPlugin } from './plugin';
 import { MarkdownView, TFile } from "obsidian";
-import { createRoot, Root } from "react-dom/client";
+import { Root } from "react-dom/client";
 import { renderComponent } from "./renderer";
-import { compileJsxIntoComponent } from "./bundle";
+import { compileJsxIntoComponent } from "./bundler";
 import { ComponentType } from "react";
 import { eventBus } from "./events";
-import { LoadingInline } from "./LoadingInline";
+import { LoadingInline } from "./components/LoadingInline";
 
 const CodeMirror = (window as any).CodeMirror;
 
 const redecorateTrigger = StateEffect.define<null>()
+
+class InlineJsWidget extends WidgetType {
+    code: string;
+    evaluated: any;
+    error: string | null = null;
+
+    constructor(code: string) {
+        super();
+        this.code = code;
+        try {
+            this.evaluated = eval?.(code);
+        } catch (err) {
+            this.error = err.toString();
+        }
+    }
+
+    toDOM(view: EditorView): HTMLElement {
+        const span = document.createElement("span");
+        span.classList.add('emera-inline-js');
+        span.innerText = this.error ? `❗️${this.error}` : this.evaluated;
+        span.addEventListener('click', (e) => {
+            e.preventDefault();
+            view.dispatch({
+                selection: { anchor: view.posAtDOM(span) },
+                scrollIntoView: true
+            });
+        });
+        return span;
+    }
+}
+
+class InlineJsxWidget extends WidgetType {
+    component: ComponentType<{}>;
+    reactRoot?: Root;
+    rootElement?: HTMLSpanElement;
+
+    constructor(
+        private code: string,
+        private plugin: EmeraPlugin,
+        private file: TFile,
+    ) {
+        super();
+    }
+
+    toDOM(view: EditorView): HTMLElement {
+        if (!this.rootElement) {
+            const span = document.createElement("span");
+            span.addEventListener('click', (e) => {
+                e.preventDefault();
+                view.dispatch({
+                    selection: { anchor: view.posAtDOM(span) },
+                    scrollIntoView: true
+                });
+            });
+            this.rootElement = span;
+            this.reactRoot = renderComponent({
+                component: LoadingInline,
+                container: this.rootElement,
+                plugin: this.plugin,
+                context: {
+                    file: this.file,
+                },
+            });
+
+            this.plugin.componentsLoaded
+                .then(() => compileJsxIntoComponent(this.code))
+                .then((component) => {
+                    this.component = component;
+                    if (this.reactRoot) {
+                        renderComponent({
+                            component,
+                            container: this.reactRoot,
+                            plugin: this.plugin,
+                            context: {
+                                file: this.file,
+                            },
+                        });
+                    }
+                });
+        }
+
+        return this.rootElement;
+    }
+}
 
 export const emeraEditorPlugin = (plugin: EmeraPlugin) => [
     ViewPlugin.fromClass(
@@ -64,6 +148,7 @@ export const emeraEditorPlugin = (plugin: EmeraPlugin) => [
 
 
             isCursorInsideNode(view: EditorView, node: SyntaxNodeRef) {
+                // TODO: Perhaps this should be `isCursoreInsideSameLine` 
                 const state = view.state;
                 const selection = state.selection;
 
@@ -101,7 +186,9 @@ export const emeraEditorPlugin = (plugin: EmeraPlugin) => [
                     return builder.finish();
                 }
                 const file = mdView?.file;
-                // TODO: allow user `export` variables/function in one block and then use them in other block
+                if (!file) {
+                    return builder.finish();
+                }
 
                 for (let { from, to } of view.visibleRanges) {
                     syntaxTree(view.state).iterate({
@@ -148,90 +235,6 @@ export const emeraEditorPlugin = (plugin: EmeraPlugin) => [
     ),
 ];
 
-
-export class InlineJsWidget extends WidgetType {
-    code: string;
-    evaluated: any;
-    error: string | null = null;
-
-    constructor(code: string) {
-        super();
-        this.code = code;
-        try {
-            this.evaluated = eval?.(code);
-        } catch (err) {
-            this.error = err.toString();
-        }
-    }
-
-    toDOM(view: EditorView): HTMLElement {
-        const span = document.createElement("span");
-        span.classList.add('emera-inline-js');
-        span.innerText = this.error ? `❗️${this.error}` : this.evaluated;
-        span.addEventListener('click', (e) => {
-            e.preventDefault();
-            view.dispatch({
-                selection: { anchor: view.posAtDOM(span) },
-                scrollIntoView: true
-            });
-        });
-        return span;
-    }
-}
-
-export class InlineJsxWidget extends WidgetType {
-    component: ComponentType<{}>;
-    reactRoot?: Root;
-    rootElement?: HTMLSpanElement;
-
-    constructor(
-        private code: string,
-        private plugin: EmeraPlugin,
-        private file: TFile | null,
-    ) {
-        super();
-    }
-
-    toDOM(view: EditorView): HTMLElement {
-        if (!this.rootElement) {
-            const span = document.createElement("span");
-            span.addEventListener('click', (e) => {
-                e.preventDefault();
-                view.dispatch({
-                    selection: { anchor: view.posAtDOM(span) },
-                    scrollIntoView: true
-                });
-            });
-            this.rootElement = span;
-            this.reactRoot = renderComponent({
-                component: LoadingInline,
-                container: this.rootElement,
-                plugin: this.plugin,
-                context: {
-                    file: this.file,
-                },
-            });
-
-            this.plugin.componentsLoaded
-                .then(() => compileJsxIntoComponent(this.code))
-                .then((component) => {
-                    this.component = component;
-                    if (this.reactRoot) {
-                        renderComponent({
-                            component,
-                            container: this.reactRoot,
-                            plugin: this.plugin,
-                            context: {
-                                file: this.file,
-                            },
-                        });
-                    }
-                });
-        }
-
-        return this.rootElement;
-    }
-}
 
 export const registerCodemirrorMode = (name: string, original: string) => {
     CodeMirror.defineMode(name, (config: any) => CodeMirror.getMode(config, original));

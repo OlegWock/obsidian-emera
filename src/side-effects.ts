@@ -7,7 +7,7 @@ import * as jsxRuntime from 'react/jsx-runtime';
 import { emeraModule } from './emera-module';
 
 import { EMERA_COMPONENTS_REGISTRY, EMERA_JS_LANG_NAME, EMERA_JSX_LANG_NAME, EMERA_MODULES, EMERA_SCOPES } from "./consts";
-import { registerCodemirrorMode } from './codemirror';
+import { registerCodemirrorMode } from './editor';
 import type { ComponentType } from 'react';
 
 // Add syntax highlight for emera

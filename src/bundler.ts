@@ -4,10 +4,10 @@ import { compileString as compileSass } from 'sass';
 import { TFile } from 'obsidian';
 import * as Babel from '@babel/standalone';
 import { ComponentType } from 'react';
-import type EmeraPlugin from '../main';
+import type { EmeraPlugin } from './plugin';
 import { EMERA_COMPONENTS_REGISTRY, EMERA_MODULES } from './consts';
 
-// @ts-ignore type this
+// @ts-ignore not included in package types, but it's there!
 const t = Babel.packages.types;
 
 function resolvePath(base: string, relative: string) {
