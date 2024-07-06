@@ -1,4 +1,4 @@
-import { App, MarkdownView, Plugin, PluginManifest, TFile } from 'obsidian';
+import { App, MarkdownView, normalizePath, Plugin, PluginManifest, TFile } from 'obsidian';
 import { SettingTab } from './settings';
 import { Fragment as _Fragment, jsxs as _jsxs, jsx as _jsx } from 'react/jsx-runtime';
 import { ComponentType, createElement } from 'react';
@@ -41,11 +41,13 @@ export class EmeraPlugin extends Plugin {
         const { resolve, promise } = Promise.withResolvers<void>();
         this.componentsLoaded = promise;
         this.resolveComponentsLoaded = resolve;
+        // @ts-ignore
+        window.emera = this;
     }
 
     async onload() {
-        // @ts-ignore
-        window.emera = this;
+
+        console.log('Plugin path', normalizePath(`${this.app.vault.configDir}/plugins/emera/manifest.json`))
 
         this.componentsRegistry = (window as any)[EMERA_COMPONENTS_REGISTRY];
 
