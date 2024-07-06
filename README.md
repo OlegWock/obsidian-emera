@@ -134,7 +134,7 @@ Emera code is executed in browser environment, which means you won't have access
 
 Emera allows you to import selected set of external modules. If you want to propose package for inclusion, open issue. But note that package shouldn't be too big and should be useful for wide range of users.
 
-Currently emera exposes these modules
+Currently Emera exposes these modules
 
 * `emera` – see [Emera module](#emera-module).
 * `react` – version 19.
@@ -149,7 +149,7 @@ Emera exposes couple of components, hooks, and functions which might be useful w
 
 * `<Markdown />` component – this component allows you to render markdown using Obsidian's renderer. Props are same as for ordinary `div` with that expection that `children` should be string.
 
-* `useEmeraContext()` hook – exposes emera-related data and functions. Currently exposes only `file`, which describes file in which component is rendered, and `storage`, which allows you to access plugin-wide storage (uses Jotai under the hood, see [storage.ts](/src/emera-module/storage.ts) for API).
+* `useEmeraContext()` hook – exposes Emera-related data and functions. Currently exposes only `file`, which describes file in which component is rendered, and `storage`, which allows you to access plugin-wide storage (uses Jotai under the hood, see [storage.ts](/src/emera-module/storage.ts) for API).
 
 * `useStorage<T>(key: string, defaultValue: T)` hook – allows you to have persisted plugin-wide state. Returned value is same as in `useState` hook.
 
