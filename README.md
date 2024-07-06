@@ -28,12 +28,12 @@ This is a plugin for Obsidian (https://obsidian.md) which enables you to use rea
 * Full-fledged JSX for more complex usecases.
 * Inline JS execution (in progress).
 * Supports both reading and live preview modes.
+* Works on mobile.
 * Components are loaded from JS files, so you can use your favorite editor.
 * Emera supports TypeScript, ES modules (local only), and direct import of CSS files. 
 
 ## Roadmap
 
-* Support for mobile
 * Accessing frontmatter in components and inline js
 * Share variables between code blocks on same page. So you could do something like:
 ````markdown

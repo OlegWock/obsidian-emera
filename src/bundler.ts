@@ -1,5 +1,4 @@
 import { rollup, type Plugin as RollupPlugin } from '@rollup/browser';
-import { createFilter } from "@rollup/pluginutils";
 import { normalizePath, TFile } from 'obsidian';
 import * as Babel from '@babel/standalone';
 import { ComponentType } from 'react';
@@ -194,8 +193,7 @@ const rollupBabelPlugin = (plugin: EmeraPlugin): RollupPlugin => ({
 const rollupCssPlugin = (plugin: EmeraPlugin): RollupPlugin => ({
     name: 'emera-styles',
     transform(code, id) {
-        const filter = createFilter(["**/*.css"], [], { resolve: false });
-        if (!filter(id)) return;
+        if (!id.endsWith('.css')) return;
 
         const injectionCode = `
           (function() {
