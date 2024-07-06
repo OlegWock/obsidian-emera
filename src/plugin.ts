@@ -111,7 +111,6 @@ export class EmeraPlugin extends Plugin {
             const file = this.app.vault.getFileByPath(ctx.sourcePath)!;
             let component: ComponentType<{}>;
 
-
             if (src.trim()) {
                 try {
                     component = await compileJsxIntoComponent(src);

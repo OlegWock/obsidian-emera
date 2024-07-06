@@ -9,7 +9,7 @@ export type RenderComponentParams<P extends Record<string, any>> = {
     component: ComponentType<P>,
     plugin: EmeraPlugin,
     children?: ReactNode,
-    context: Omit<EmeraContextType, 'plugin' | 'storage'>,
+    context: Omit<EmeraContextType, 'plugin' | 'storage' | 'frontmatter'>,
     props?: P
 };
 
@@ -22,12 +22,14 @@ export const renderComponent = <P extends Record<string, any>>({ component, cont
         root = container;
     }
 
+    const frontmatter = plugin.app.metadataCache.getFileCache(context.file)?.frontmatter;
     root.render(
         createElement(EmeraContextProvider, {
             value: {
                 ...context,
                 plugin,
                 storage: plugin.storage,
+                frontmatter,
             },
         },
             createElement(ErrorBoundary, {},

@@ -53,10 +53,7 @@ Emera isn't available in Obsidian plugin catalog (at least yet). To install Emer
 
 ## How to use
 
-After you install and enable Emera, you can configure your components folder. By default it's `Components` folder in root of your vault.
-
-> [!NOTE]  
-> You can change the components folder, but it can't start with dot (e.g. `.components`), as plugins don't have access to hidden folders.
+After you install and enable Emera, you can configure your components folder. By default it's `Components` folder in the root of your vault.
 
 Create file `index.js` in your components folder and put example components there:
 
@@ -149,7 +146,7 @@ Emera exposes couple of components, hooks, and functions which might be useful w
 
 * `<Markdown />` component – this component allows you to render markdown using Obsidian's renderer. Props are same as for ordinary `div` with that expection that `children` should be string.
 
-* `useEmeraContext()` hook – exposes Emera-related data and functions. Currently exposes only `file`, which describes file in which component is rendered, and `storage`, which allows you to access plugin-wide storage (uses Jotai under the hood, see [storage.ts](/src/emera-module/storage.ts) for API).
+* `useEmeraContext()` hook – exposes Emera-related data and functions. Currently exposes only `file`, which describes file in which component is rendered, `frontmatter` for frontmatter properties if present, and `storage`, which allows you to access plugin-wide storage (uses Jotai under the hood, see [storage.ts](/src/emera-module/storage.ts) for API).
 
 * `useStorage<T>(key: string, defaultValue: T)` hook – allows you to have persisted plugin-wide state. Returned value is same as in `useState` hook.
 
