@@ -46,9 +46,6 @@ export class EmeraPlugin extends Plugin {
     }
 
     async onload() {
-
-        console.log('Plugin path', normalizePath(`${this.app.vault.configDir}/plugins/emera/manifest.json`))
-
         this.componentsRegistry = (window as any)[EMERA_COMPONENTS_REGISTRY];
 
         await this.loadSettings();

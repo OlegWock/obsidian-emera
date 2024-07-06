@@ -11,9 +11,9 @@ export const createEmeraStorage = (plugin: EmeraPlugin) => {
     const unsubFunction: VoidFunction[] = [];
 
     const init = async () => {
-        const file = plugin.app.vault.getFileByPath(filePath);
-        if (file) {
-            const content = await plugin.app.vault.read(file);
+        const exists = await plugin.app.vault.adapter.exists(filePath);
+        if (exists) {
+            const content = await plugin.app.vault.adapter.read(filePath);
             console.log('File content', content);
             state = JSON.parse(content);
         }
@@ -25,17 +25,8 @@ export const createEmeraStorage = (plugin: EmeraPlugin) => {
     };
 
     const flush = async () => {
-        const id = Math.random();
-        console.log('Start flush', id);
-        let file = plugin.app.vault.getFileByPath(filePath);
-        console.log('File', file);
         const stateStr = JSON.stringify(state, null, 4);
-        if (!file) {
-            await plugin.app.vault.create(filePath, stateStr);
-        } else {
-            await plugin.app.vault.modify(file, stateStr);
-        }
-        console.log('Finish flush', id);
+        await plugin.app.vault.adapter.write(filePath, stateStr);
     };
 
     const set = (prop: string, val: any) => {

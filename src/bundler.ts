@@ -81,7 +81,6 @@ function jsxNamespacer() {
                     const firstArg = path.node.arguments[0];
                     if (t.isIdentifier(firstArg)) {
                         const binding = path.scope.getBinding(firstArg.name);
-                        console.log('Binding for', firstArg.name, binding);
                         if (!binding && !['_Fragment', 'Fragment'].includes(firstArg.name)) {
                             path.node.arguments[0] = t.memberExpression(
                                 t.identifier(`window.${EMERA_COMPONENTS_REGISTRY}`),
@@ -150,10 +149,10 @@ export const transpileCode = (code: string, patchJsxNamespace = false) => {
     return transpiled;
 };
 
-const rollupVirtualFsPlugin = (plugin: EmeraPlugin, file: TFile): RollupPlugin => ({
+const rollupVirtualFsPlugin = (plugin: EmeraPlugin, path: string): RollupPlugin => ({
     name: 'virtualFs',
-    resolveId(source, importer) {
-        if (source === file.path) {
+    async resolveId(source, importer) {
+        if (source === path) {
             return source;
         }
 
@@ -167,8 +166,8 @@ const rollupVirtualFsPlugin = (plugin: EmeraPlugin, file: TFile): RollupPlugin =
 
             for (const ext of extensions) {
                 const pathWithExt = `${resolvedPath}${ext}`;
-                const file = plugin.app.vault.getFileByPath(pathWithExt);
-                if (file) {
+                const exists = await plugin.app.vault.adapter.exists(pathWithExt);
+                if (exists) {
                     return pathWithExt;
                 }
             }
@@ -176,12 +175,12 @@ const rollupVirtualFsPlugin = (plugin: EmeraPlugin, file: TFile): RollupPlugin =
 
         return null;
     },
-    load(id) {
-        const file = plugin.app.vault.getFileByPath(id);
-        if (!file) {
+    async load(id) {
+        const exists = await plugin.app.vault.adapter.exists(id);
+        if (!exists) {
             return null;
         }
-        return plugin.app.vault.read(file);
+        return plugin.app.vault.adapter.read(id);
     }
 });
 
@@ -210,12 +209,12 @@ const rollupCssPlugin = (plugin: EmeraPlugin): RollupPlugin => ({
     }
 });
 
-export const bundleFile = async (plugin: EmeraPlugin, file: TFile) => {
-    console.log('Bundling', file.path);
+export const bundleFile = async (plugin: EmeraPlugin, path: string) => {
+    console.log('Bundling', path);
     const bundle = await rollup({
-        input: file.path,
+        input: path,
         plugins: [
-            rollupVirtualFsPlugin(plugin, file),
+            rollupVirtualFsPlugin(plugin, path),
             rollupCssPlugin(plugin),
             rollupBabelPlugin(plugin),
         ]
@@ -245,18 +244,24 @@ export const compileJsxIntoComponent = async (jsx: string): Promise<ComponentTyp
 
 export const loadComponents = async (plugin: EmeraPlugin): Promise<Record<string, ComponentType<any>>> => {
     const extensions = ['js', 'jsx', 'ts', 'tsx'];
-    let indexFile: TFile | null = null;
+    let indexFile: string | null = null;
     for (const ext of extensions) {
-        indexFile = plugin.app.vault.getFileByPath(normalizePath(`${plugin.settings.componentsFolder}/index.${ext}`));
-        if (indexFile) break;
+        const path = normalizePath(`${plugin.settings.componentsFolder}/index.${ext}`);
+        const exists = await plugin.app.vault.adapter.exists(path);
+        if (exists) {
+            indexFile = path;
+            break;
+        }
     }
     if (!indexFile) {
         console.log('Index file not found');
         return {};
     }
 
+    // TODO: this might fail silently (with just error in console) if user tries, for example, importing unsupported file type
     const bundledCode = await bundleFile(plugin, indexFile);
-    // TODO: this might fail silently (with just error in console) if user tries to import global module
+
+    // TODO: and this might fail if user tries to import global module
     // that isn't provided by Emera. We'll need to show some notice at least.
     const registry = await importFromString(bundledCode);
     return registry;
