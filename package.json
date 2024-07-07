@@ -34,6 +34,7 @@
 		"eventemitter3": "^5.0.1",
 		"framer-motion": "^11.2.12",
 		"jotai": "^2.8.4",
+		"nanoid": "^5.0.7",
 		"react": "19.0.0-rc-58af67a8f8-20240628",
 		"react-dom": "19.0.0-rc-58af67a8f8-20240628",
 		"react-error-boundary": "^4.0.13",

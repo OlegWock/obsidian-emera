@@ -22,7 +22,7 @@ import { LoadingInline } from "./components/LoadingInline";
 
 const CodeMirror = (window as any).CodeMirror;
 
-const redecorateTrigger = StateEffect.define<null>()
+const redecorateTrigger = StateEffect.define<null>();
 
 class InlineJsWidget extends WidgetType {
     code: string;
@@ -87,7 +87,7 @@ class InlineJsxWidget extends WidgetType {
                 },
             });
 
-            this.plugin.componentsLoaded
+            this.plugin.componentsLoadedPromise
                 .then(() => compileJsxIntoComponent(this.code))
                 .then((component) => {
                     this.component = component;
@@ -128,7 +128,7 @@ export const emeraEditorPlugin = (plugin: EmeraPlugin) => [
 
             update(update: ViewUpdate) {
                 const manualRefresh = update.transactions.some(tr => tr.effects.some(effect => effect.is(redecorateTrigger)));
-                if (manualRefresh) console.log('Manual refresh of editor decorations')
+                if (manualRefresh) console.log('Manual refresh of editor decorations');
                 if (manualRefresh || update.docChanged || update.viewportChanged || update.selectionSet) {
                     this.decorations = this.buildDecorations(update.view);
                 }

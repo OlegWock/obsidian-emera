@@ -1,12 +1,26 @@
 import { rollup, type Plugin as RollupPlugin } from '@rollup/browser';
-import { normalizePath, TFile } from 'obsidian';
+import { normalizePath } from 'obsidian';
 import * as Babel from '@babel/standalone';
 import { ComponentType } from 'react';
 import type { EmeraPlugin } from './plugin';
-import { EMERA_COMPONENTS_REGISTRY, EMERA_MODULES } from './consts';
+import { EMERA_COMPONENTS_REGISTRY, EMERA_GET_SCOPE, EMERA_MODULES, EMERA_ROOT_SCOPE } from './consts';
+import { ScopeNode } from './scope';
 
 // @ts-ignore not included in package types, but it's there!
 const t = Babel.packages.types;
+
+const globalVars = new Set([
+    'window', 'self', 'globalThis', 'document', 'console', 'app',
+    'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval',
+    'addEventListener', 'removeEventListener', 'localStorage', 'sessionStorage',
+    'fetch', 'XMLHttpRequest', 'JSON', 'Math', 'Date', 'Array', 'Object',
+    'String', 'Number', 'Boolean', 'RegExp', 'Map', 'Set', 'Promise',
+    'Error', 'undefined', 'NaN', 'Infinity',
+
+    // Not really globals, but due to how Babel works, our plugin might replace those
+    // before react plugin will add related imports, so we explicitly ignore them
+    '_jsx', '_Fragment', '_jsxs',
+]);
 
 function resolvePath(base: string, relative: string) {
     const stack = base.split('/');
@@ -72,7 +86,7 @@ function importRewriter() {
 }
 Babel.registerPlugin("importRewriter", importRewriter);
 
-function jsxNamespacer() {
+function jsxRewriter() {
     return {
         visitor: {
             CallExpression(path: any) {
@@ -82,7 +96,10 @@ function jsxNamespacer() {
                         const binding = path.scope.getBinding(firstArg.name);
                         if (!binding && !['_Fragment', 'Fragment'].includes(firstArg.name)) {
                             path.node.arguments[0] = t.memberExpression(
-                                t.identifier(`window.${EMERA_COMPONENTS_REGISTRY}`),
+                                t.memberExpression(
+                                    t.identifier('window'),
+                                    t.identifier(EMERA_COMPONENTS_REGISTRY),
+                                ),
                                 firstArg
                             );
                         }
@@ -97,7 +114,7 @@ function jsxNamespacer() {
                             parts.unshift(currentNode.name);
                         }
 
-                        if (parts[0] === `window.${EMERA_COMPONENTS_REGISTRY}`) {
+                        if (globalVars.has(parts[0])) {
                             return;
                         }
 
@@ -105,7 +122,10 @@ function jsxNamespacer() {
                         if (!binding) {
                             const newExpression = parts.reduce((acc, part, index) => {
                                 return t.memberExpression(
-                                    index === 0 ? t.identifier(`window.${EMERA_COMPONENTS_REGISTRY}`) : acc,
+                                    index === 0 ? t.memberExpression(
+                                        t.identifier('window'),
+                                        t.identifier(EMERA_COMPONENTS_REGISTRY)
+                                    ) : acc,
                                     t.identifier(part)
                                 );
                             }, null);
@@ -117,9 +137,133 @@ function jsxNamespacer() {
         },
     };
 }
-Babel.registerPlugin("jsxNamespacer", jsxNamespacer);
+Babel.registerPlugin("jsxRewriter", jsxRewriter);
 
-export const transpileCode = (code: string, patchJsxNamespace = false) => {
+function scopeRewriter() {
+    function isStandaloneOrFirstInChain(path: any) {
+        const parent = path.parent;
+
+        if (t.isMemberExpression(parent)) {
+            return parent.object === path.node;
+        }
+
+        if (t.isOptionalMemberExpression(parent)) {
+            return parent.object === path.node;
+        }
+
+        return true;
+    }
+
+    function isPartOfObjectPattern(path: any) {
+        const scopeBlock = path.scope.block;
+        if (t.isProgram(scopeBlock) || t.isBlockStatement(scopeBlock)) {
+            for (const statement of scopeBlock.body) {
+                if (t.isVariableDeclaration(statement)) {
+                    for (const declarator of statement.declarations) {
+                        if (t.isObjectPattern(declarator.id)) {
+                            for (const property of declarator.id.properties) {
+                                if (
+                                    t.isObjectProperty(property) &&
+                                    t.isIdentifier(property.key) &&
+                                    property.key.name === path.node.name &&
+                                    t.isIdentifier(property.value) &&
+                                    property.value.name !== path.node.name
+                                ) {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    function isIdentifierReExported(path: any): boolean {
+        const program = path.findParent((p: any) => p.isProgram());
+
+        if (!program) return false;
+
+        return program.node.body.some((node: any) => {
+            if (t.isExportNamedDeclaration(node) && node.source) {
+                return node.specifiers.some((specifier: any) => {
+                    if (t.isExportSpecifier(specifier)) {
+                        return (
+                            (t.isIdentifier(specifier.exported) && specifier.exported.name === path.node.name) ||
+                            (t.isIdentifier(specifier.local) && specifier.local.name === path.node.name)
+                        );
+                    }
+                    return false;
+                });
+            }
+            return false;
+        });
+    }
+
+    function isObjectKey(identifierPath: any): boolean {
+        const parent = identifierPath.parentPath;
+
+        if (parent.isObjectProperty()) {
+            return parent.node.key === identifierPath.node && !parent.node.computed;
+        }
+
+        return false;
+    }
+
+    return {
+        // Need to run this last
+
+        visitor: {
+            Identifier(path: any, state: any) {
+                const scope = state.opts.scope as ScopeNode;
+
+                const name = path.node.name;
+
+                const firstIdentifier = isStandaloneOrFirstInChain(path);
+                if (!firstIdentifier) return;
+                if (!path.isReferencedIdentifier()) return;
+                if (globalVars.has(name)) return;
+
+                const binding = path.scope.getBinding(name);
+                if (binding) return;
+
+                if (isPartOfObjectPattern(path)) return;
+                if (isIdentifierReExported(path)) return;
+                if (isObjectKey(path)) return;
+
+                // console.log(`Candidate for scoping: ${name}`);
+
+                const replacement = t.callExpression(
+                    t.memberExpression(
+                        t.callExpression(
+                            t.memberExpression(
+                                t.identifier('window'),
+                                t.identifier(EMERA_GET_SCOPE)
+                            ),
+                            [t.stringLiteral(scope.id)]
+                        ),
+                        t.identifier('get')
+                    ),
+                    [t.stringLiteral(name)]
+                );
+
+                path.replaceWith(replacement);
+
+            },
+        }
+    };
+}
+Babel.registerPlugin("scopeRewriter", scopeRewriter);
+
+type TranspileCodeOptions = {
+    rewriteImports?: boolean
+    rewriteUnbindedJsxComponents?: boolean,
+    scope?: ScopeNode,
+};
+
+export const transpileCode = (
+    code: string,
+    { rewriteUnbindedJsxComponents = false, rewriteImports = true, scope }: TranspileCodeOptions = {}) => {
     const transpiled = Babel.transform(code, {
         presets: [
             [
@@ -138,15 +282,20 @@ export const transpileCode = (code: string, patchJsxNamespace = false) => {
             ]
         ],
         plugins: [
-            Babel.availablePlugins["importRewriter"],
-            ...(patchJsxNamespace ? [Babel.availablePlugins["jsxNamespacer"]] : []),
+            ...(rewriteImports ? [Babel.availablePlugins["importRewriter"]] : []),
+            ...(rewriteUnbindedJsxComponents ? [Babel.availablePlugins["jsxRewriter"]] : []),
+            ...(scope ? [[Babel.availablePlugins["scopeRewriter"], { scope }]] : []),
         ],
     }).code;
     if (!transpiled) {
         throw new Error('Babel failed :(');
     }
+    // console.log(transpiled);
     return transpiled;
 };
+
+// @ts-ignore
+window.transpileCode = transpileCode;
 
 const rollupVirtualFsPlugin = (plugin: EmeraPlugin, path: string): RollupPlugin => ({
     name: 'virtualFs',
@@ -157,7 +306,7 @@ const rollupVirtualFsPlugin = (plugin: EmeraPlugin, path: string): RollupPlugin 
 
         if (importer && (source.startsWith('./') || source.startsWith('../'))) {
             const resolvedPath = resolvePath(importer, source);
-            const extensions = ['.js', '.jsx', '.ts', '.tsx', '.css' ];
+            const extensions = ['.js', '.jsx', '.ts', '.tsx', '.css'];
 
             if (extensions.some(ext => resolvedPath.endsWith(ext))) {
                 return resolvedPath;
@@ -229,12 +378,16 @@ export const importFromString = (code: string) => {
     return import(encodedCode);
 };
 
-export const compileJsxIntoComponent = async (jsx: string): Promise<ComponentType<{}>> => {
+export const compileJsxIntoComponent = async (jsx: string, scope?: ScopeNode): Promise<ComponentType<{}>> => {
     const source = `export default () => (<>${jsx}</>);`;
-    // console.log('Original JSX');
+    // console.log('====== Scope', scope);
+    // console.log('====== Original JSX');
     // console.log(jsx);
-    const transpiled = transpileCode(source, true);
-    // console.log('Compiled JSX code');
+    const transpiled = transpileCode(source, {
+        rewriteUnbindedJsxComponents: true,
+        scope,
+    });
+    // console.log('====== Compiled JSX code');
     // console.log(transpiled);
     const { default: component } = await importFromString(transpiled);
     return component;

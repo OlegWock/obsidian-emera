@@ -1,6 +1,7 @@
 export const EMERA_MODULES = '_emeraModules';
 export const EMERA_COMPONENTS_REGISTRY = '_emeraComponentsRegistry';
-export const EMERA_SCOPES = '_emeraScopes';
+export const EMERA_ROOT_SCOPE = '_emeraRootScope';
+export const EMERA_GET_SCOPE = '_emeraGetScope';
 
 export const EMERA_JSX_LANG_NAME = 'emera';
 export const EMERA_COMPONENT_PREFIX = 'Em';

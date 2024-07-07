@@ -1,9 +1,9 @@
-import { App, MarkdownView, normalizePath, Plugin, PluginManifest, TFile } from 'obsidian';
+import { App, MarkdownView, Plugin, PluginManifest, TFile } from 'obsidian';
 import { SettingTab } from './settings';
 import { Fragment as _Fragment, jsxs as _jsxs, jsx as _jsx } from 'react/jsx-runtime';
 import { ComponentType, createElement } from 'react';
 import { compileJsxIntoComponent, loadComponents } from './bundler';
-import { EMERA_COMPONENT_PREFIX, EMERA_COMPONENTS_REGISTRY, EMERA_INLINE_JS_PREFIX, EMERA_INLINE_JSX_PREFIX, EMERA_JS_LANG_NAME, EMERA_JSX_LANG_NAME } from './consts';
+import { EMERA_COMPONENT_PREFIX, EMERA_COMPONENTS_REGISTRY, EMERA_INLINE_JS_PREFIX, EMERA_INLINE_JSX_PREFIX, EMERA_JSX_LANG_NAME, EMERA_ROOT_SCOPE } from './consts';
 import { emeraEditorPlugin, registerCodemirrorMode } from './editor';
 import { renderComponent } from './renderer';
 import { eventBus } from './events';
@@ -11,8 +11,11 @@ import { ErrorAlert } from './components/ErrorBoundary';
 import { createEmeraStorage, EmeraStorage } from './emera-module/storage';
 import { EmptyBlock } from './components/EmptyBlock';
 import { LoadingInline } from './components/LoadingInline';
-import './side-effects';
-
+import { populateRootScope, ScopeNode } from './scope';
+import { InlineJsProcessor } from './processors/inline-js-processor';
+import { InlineJsxProcessor } from './processors/inline-jsx-processor';
+import { BlockJsxProcessor } from './processors/block-jsx-processor';
+import { emeraCurrentEditorProviderPlugin, emeraCurrentEditorStateField } from './processors/utils';
 
 interface PluginSettings {
     componentsFolder: string;
@@ -20,29 +23,37 @@ interface PluginSettings {
 
 const DEFAULT_SETTINGS: PluginSettings = {
     componentsFolder: 'Components'
-}
-
-type QueueElement =
-    | { type: 'single', name: string, elementRef: WeakRef<HTMLElement>, file: TFile }
-    | { type: 'tree', elementRef: WeakRef<HTMLElement>, file: TFile }
+};
 
 export class EmeraPlugin extends Plugin {
     settings: PluginSettings;
     componentsRegistry: Record<string, ComponentType<any>> = {};
     registeredShorthandsProcessors: string[] = [];
-    queue: QueueElement[] = [];
     isFilesLoaded = false;
-    componentsLoaded: Promise<void>;
+    isComponentsLoaded: boolean;
+    componentsLoadedPromise: Promise<void>;
     private resolveComponentsLoaded: VoidFunction;
     storage: EmeraStorage;
+    rootScope: ScopeNode;
+    inlineJsProcessor: InlineJsProcessor;
+    inlineJsxProcessor: InlineJsxProcessor;
+    blockJsxProcessor: BlockJsxProcessor;
 
     constructor(app: App, manifest: PluginManifest) {
         super(app, manifest);
         const { resolve, promise } = Promise.withResolvers<void>();
-        this.componentsLoaded = promise;
+        this.isComponentsLoaded = false;
+        this.componentsLoadedPromise = promise;
         this.resolveComponentsLoaded = resolve;
         // @ts-ignore
         window.emera = this;
+
+        this.rootScope = (window as any)[EMERA_ROOT_SCOPE];
+        populateRootScope(this);
+
+        this.inlineJsProcessor = new InlineJsProcessor(this);
+        this.inlineJsxProcessor = new InlineJsxProcessor(this);
+        this.blockJsxProcessor = new BlockJsxProcessor(this);
     }
 
     async onload() {
@@ -52,14 +63,28 @@ export class EmeraPlugin extends Plugin {
         this.addSettingTab(new SettingTab(this.app, this));
         this.storage = createEmeraStorage(this);
 
-        this.registerEditorExtension(emeraEditorPlugin(this));
-        this.attachMarkdownProcessors();
+        // this.registerEditorExtension(emeraEditorPlugin(this));
+        // this.attachMarkdownProcessors();
+
+        this.registerMarkdownPostProcessor(this.inlineJsProcessor.markdownPostProcessor);
+        this.registerMarkdownPostProcessor(this.inlineJsxProcessor.markdownPostProcessor);
+        this.registerMarkdownPostProcessor(this.blockJsxProcessor.markdownPostProcessor);
+
+        this.registerEditorExtension([
+            emeraCurrentEditorProviderPlugin,
+            emeraCurrentEditorStateField,
+            this.inlineJsProcessor.codemirrorStateField,
+            this.inlineJsxProcessor.codemirrorStateField,
+            this.blockJsxProcessor.codemirrorStateField,
+        ]);
+
 
         this.app.workspace.onLayoutReady(async () => {
             this.isFilesLoaded = true;
             await this.storage.init();
             const registry = await loadComponents(this);
             Object.assign(this.componentsRegistry, registry);
+            this.isComponentsLoaded = true;
             this.resolveComponentsLoaded();
             eventBus.emit('onComponentsLoaded');
             // TODO: support namespaces
@@ -107,13 +132,13 @@ export class EmeraPlugin extends Plugin {
 
     attachMarkdownProcessors = () => {
         this.registerMarkdownCodeBlockProcessor(EMERA_JSX_LANG_NAME, async (src, container, ctx) => {
-            await this.componentsLoaded;
+            await this.componentsLoadedPromise;
             const file = this.app.vault.getFileByPath(ctx.sourcePath)!;
             let component: ComponentType<{}>;
 
             if (src.trim()) {
                 try {
-                    component = await compileJsxIntoComponent(src);
+                    component = await compileJsxIntoComponent(src, this.rootScope);
                 } catch (error) {
                     component = () => createElement(ErrorAlert, { error });
                 }
@@ -141,23 +166,6 @@ export class EmeraPlugin extends Plugin {
                 });
             });
         });
-
-        // this.registerMarkdownCodeBlockProcessor(EMERA_JS_LANG_NAME, async (src, container, ctx) => {
-            // console.log('Processing code block', src, ctx);
-            // TODO: we need to know how many code blocks there is on page an which one of them is current one.
-            // This doesn't seem possible with `registerMarkdownCodeBlockProcessor`, but we should be able to 
-            // make our own CodeMirror extension which will replace emjs blocks
-
-            // Algo:
-            // Transpile code (no need for bundling)
-            // Ensure it's executed in same order as defined on page
-            // Store results of execution in special `scope` object (one per page)
-            // We don't really to what script is evaluated, as we won't show its results directly
-            // Render generic 'Emera code' in place of code block
-            // Maybe allow user exporting string variable `emeraBlockName` which will be used in placeholder for easier navigation
-            
-            // container.innerText = '[Emera code]';
-        // });
 
         this.registerMarkdownPostProcessor((el, ctx) => {
             const file = this.app.vault.getFileByPath(ctx.sourcePath)!;
@@ -194,7 +202,7 @@ export class EmeraPlugin extends Plugin {
                         },
                     });
 
-                    this.componentsLoaded.then(() => compileJsxIntoComponent(code)).then(component => {
+                    this.componentsLoadedPromise.then(() => compileJsxIntoComponent(code, this.rootScope)).then(component => {
                         renderComponent({
                             component,
                             container: reactRoot,

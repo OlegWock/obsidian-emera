@@ -5,7 +5,7 @@ import type { EmeraPlugin } from './plugin';
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 export type RenderComponentParams<P extends Record<string, any>> = {
-    container: HTMLElement | Root,
+    container: Element | Root,
     component: ComponentType<P>,
     plugin: EmeraPlugin,
     children?: ReactNode,
@@ -15,7 +15,7 @@ export type RenderComponentParams<P extends Record<string, any>> = {
 
 export const renderComponent = <P extends Record<string, any>>({ component, container, plugin, context, children, props }: RenderComponentParams<P>) => {
     let root: Root;
-    if (container instanceof HTMLElement) {
+    if (container instanceof Element) {
         container.classList.add('emera-root');
         root = createRoot(container);
     } else {

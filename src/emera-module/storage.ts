@@ -14,10 +14,8 @@ export const createEmeraStorage = (plugin: EmeraPlugin) => {
         const exists = await plugin.app.vault.adapter.exists(filePath);
         if (exists) {
             const content = await plugin.app.vault.adapter.read(filePath);
-            console.log('File content', content);
             state = JSON.parse(content);
         }
-        console.log('Initiated emera storage with state', state);
     };
 
     const destroy = () => {
