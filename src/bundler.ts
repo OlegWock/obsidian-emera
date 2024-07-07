@@ -235,7 +235,7 @@ export const transpileCode = (
     if (!transpiled) {
         throw new Error('Babel failed :(');
     }
-    console.log(transpiled);
+    // console.log(transpiled);
     return transpiled;
 };
 

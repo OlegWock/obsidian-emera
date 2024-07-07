@@ -82,12 +82,12 @@ To render component inline, add ```emera:<HelloWorldInline name="Obsidian" />```
 To render component as block, there are two syntaxes. Shorthand syntax is convenient if your component acts as a simple wrapper (e.g. `<Callout />` kind of component). You add it by creating codeblock with language ```Em<Name of your component>```
 
 ````markdown
-```EmRedCallout
+```emera:RedCallout
 You can use **Markdown** inside `<RedCallout />`.
 ```
 ````
 
-When using shorthand syntax, content of codeblock isn't parsed as JSX, but passed directly to the component as string. This allows to preserve any formatting, and later correctly render it with `<Markdown />` component.
+When using shorthand syntax, content of codeblock isn't parsed as JSX, but passed directly to the component as a string. This allows to preserve any formatting, and later correctly render it with `<Markdown />` component.
 
 And for more complex cases there is support for JSX. JSX is automatically wrapped in Fragment, so you can add multiple siblings to same block.
 

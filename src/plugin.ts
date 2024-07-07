@@ -54,8 +54,6 @@ export class EmeraPlugin extends Plugin {
         this.addSettingTab(new SettingTab(this.app, this));
         this.storage = createEmeraStorage(this);
 
-        // TODO: support shorthand syntax again
-
         this.registerMarkdownPostProcessor(this.inlineJsProcessor.markdownPostProcessor);
         this.registerMarkdownPostProcessor(this.inlineJsxProcessor.markdownPostProcessor);
         this.registerMarkdownPostProcessor(this.blockJsxProcessor.markdownPostProcessor);

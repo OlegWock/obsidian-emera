@@ -20,7 +20,12 @@ import { emeraCurrentEditorStateField, findCurrentView, isCursorBetweenNodes, is
 
 export type UniversalProcessorContext = {
     file: TFile,
-}
+} & ({
+    mode: 'preview'
+    originalPreviewElement: Element
+} | {
+    mode: 'edit',
+});
 
 const redecorateTrigger = StateEffect.define<null>();
 
@@ -50,6 +55,8 @@ export abstract class UniversalMdProcessor {
             const replacement = document.createElement(this.inline ? 'span' : 'div');
             this.process(replacement, content, {
                 file,
+                mode: 'preview',
+                originalPreviewElement: el,
             });
             el.replaceWith(replacement);
         });
@@ -104,6 +111,7 @@ export abstract class UniversalMdProcessor {
 
                             const widget = new parent.CodeMirrorWidget(nodeContent, {
                                 file,
+                                mode: 'edit',
                             });
                             builder.add(
                                 node.from,
@@ -124,6 +132,7 @@ export abstract class UniversalMdProcessor {
                                     const text = state.doc.sliceString(startNode.from, node.to).trim();
                                     const widget = new parent.CodeMirrorWidget(text, {
                                         file,
+                                        mode: 'edit',
                                     });
                                     builder.add(
                                         startNode.from - 1,
