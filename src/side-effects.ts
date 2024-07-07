@@ -7,9 +7,8 @@ import * as reactDom from 'react-dom';
 import * as jsxRuntime from 'react/jsx-runtime';
 import { emeraModule } from './emera-module';
 
-import { EMERA_COMPONENTS_REGISTRY, EMERA_GET_SCOPE, EMERA_JS_LANG_NAME, EMERA_JSX_LANG_NAME, EMERA_MODULES, EMERA_ROOT_SCOPE } from "./consts";
+import { EMERA_GET_SCOPE, EMERA_JS_LANG_NAME, EMERA_JSX_LANG_NAME, EMERA_MODULES, EMERA_ROOT_SCOPE } from "./consts";
 import { registerCodemirrorMode } from './editor';
-import type { ComponentType } from 'react';
 import { getScope, ScopeNode } from './scope';
 
 // Add syntax highlight for emera
@@ -39,12 +38,3 @@ registerCodemirrorMode(EMERA_JS_LANG_NAME, 'js');
 
 (window as any)[EMERA_ROOT_SCOPE] = new ScopeNode('root');
 (window as any)[EMERA_GET_SCOPE] = getScope;
-(window as any)[EMERA_COMPONENTS_REGISTRY] = new Proxy({} as Record<string, ComponentType<any>>, {
-    get(target, p: string, receiver) {
-        const component = Reflect.get(target, p, receiver);
-        if (!component) {
-            throw new Error(`You're trying to render component ${p}, but it's missing from registry. Make sure you exported it from index.js file.`)
-        }
-        return component;
-    },
-});

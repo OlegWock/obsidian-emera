@@ -3,8 +3,8 @@ import { normalizePath } from 'obsidian';
 import * as Babel from '@babel/standalone';
 import { ComponentType } from 'react';
 import type { EmeraPlugin } from './plugin';
-import { EMERA_COMPONENTS_REGISTRY, EMERA_GET_SCOPE, EMERA_MODULES, EMERA_ROOT_SCOPE } from './consts';
-import { ScopeNode } from './scope';
+import { EMERA_GET_SCOPE, EMERA_MODULES } from './consts';
+import { getScope, ScopeNode } from './scope';
 
 // @ts-ignore not included in package types, but it's there!
 const t = Babel.packages.types;
@@ -85,59 +85,6 @@ function importRewriter() {
     };
 }
 Babel.registerPlugin("importRewriter", importRewriter);
-
-function jsxRewriter() {
-    return {
-        visitor: {
-            CallExpression(path: any) {
-                if (['_jsxs', '_jsx'].includes(path.node.callee.name)) {
-                    const firstArg = path.node.arguments[0];
-                    if (t.isIdentifier(firstArg)) {
-                        const binding = path.scope.getBinding(firstArg.name);
-                        if (!binding && !['_Fragment', 'Fragment'].includes(firstArg.name)) {
-                            path.node.arguments[0] = t.memberExpression(
-                                t.memberExpression(
-                                    t.identifier('window'),
-                                    t.identifier(EMERA_COMPONENTS_REGISTRY),
-                                ),
-                                firstArg
-                            );
-                        }
-                    } else if (t.isMemberExpression(firstArg)) {
-                        let currentNode = firstArg;
-                        const parts = [];
-                        while (t.isMemberExpression(currentNode)) {
-                            parts.unshift(currentNode.property.name);
-                            currentNode = currentNode.object;
-                        }
-                        if (t.isIdentifier(currentNode)) {
-                            parts.unshift(currentNode.name);
-                        }
-
-                        if (globalVars.has(parts[0])) {
-                            return;
-                        }
-
-                        const binding = path.scope.getBinding(parts[0]);
-                        if (!binding) {
-                            const newExpression = parts.reduce((acc, part, index) => {
-                                return t.memberExpression(
-                                    index === 0 ? t.memberExpression(
-                                        t.identifier('window'),
-                                        t.identifier(EMERA_COMPONENTS_REGISTRY)
-                                    ) : acc,
-                                    t.identifier(part)
-                                );
-                            }, null);
-                            path.node.arguments[0] = newExpression;
-                        }
-                    }
-                }
-            }
-        },
-    };
-}
-Babel.registerPlugin("jsxRewriter", jsxRewriter);
 
 function scopeRewriter() {
     function isStandaloneOrFirstInChain(path: any) {
@@ -257,13 +204,12 @@ Babel.registerPlugin("scopeRewriter", scopeRewriter);
 
 type TranspileCodeOptions = {
     rewriteImports?: boolean
-    rewriteUnbindedJsxComponents?: boolean,
     scope?: ScopeNode,
 };
 
 export const transpileCode = (
     code: string,
-    { rewriteUnbindedJsxComponents = false, rewriteImports = true, scope }: TranspileCodeOptions = {}) => {
+    { rewriteImports = true, scope }: TranspileCodeOptions = {}) => {
     const transpiled = Babel.transform(code, {
         presets: [
             [
@@ -283,14 +229,13 @@ export const transpileCode = (
         ],
         plugins: [
             ...(rewriteImports ? [Babel.availablePlugins["importRewriter"]] : []),
-            ...(rewriteUnbindedJsxComponents ? [Babel.availablePlugins["jsxRewriter"]] : []),
-            ...(scope ? [[Babel.availablePlugins["scopeRewriter"], { scope }]] : []),
+            [Babel.availablePlugins["scopeRewriter"], { scope: scope ?? getScope('root') }],
         ],
     }).code;
     if (!transpiled) {
         throw new Error('Babel failed :(');
     }
-    // console.log(transpiled);
+    console.log(transpiled);
     return transpiled;
 };
 
@@ -384,7 +329,6 @@ export const compileJsxIntoComponent = async (jsx: string, scope?: ScopeNode): P
     // console.log('====== Original JSX');
     // console.log(jsx);
     const transpiled = transpileCode(source, {
-        rewriteUnbindedJsxComponents: true,
         scope,
     });
     // console.log('====== Compiled JSX code');

@@ -35,6 +35,4 @@ It's clear that scopes should be modelled as tree data structure. Namely we'll n
 
 ---
 
-* Replace current components registry solution with global scope
-
 * JS code blocks with `export` should make variable available in page's scope

@@ -2,7 +2,7 @@ import { App, MarkdownView, Plugin, PluginManifest } from 'obsidian';
 import { SettingTab } from './settings';
 import { ComponentType } from 'react';
 import { loadComponents } from './bundler';
-import { EMERA_COMPONENTS_REGISTRY, EMERA_ROOT_SCOPE } from './consts';
+import { EMERA_ROOT_SCOPE } from './consts';
 import { eventBus } from './events';
 import { createEmeraStorage, EmeraStorage } from './emera-module/storage';
 import { populateRootScope, ScopeNode } from './scope';
@@ -21,7 +21,6 @@ const DEFAULT_SETTINGS: PluginSettings = {
 
 export class EmeraPlugin extends Plugin {
     settings: PluginSettings;
-    componentsRegistry: Record<string, ComponentType<any>> = {};
     registeredShorthandsProcessors: string[] = [];
     isFilesLoaded = false;
     isComponentsLoaded: boolean;
@@ -51,8 +50,6 @@ export class EmeraPlugin extends Plugin {
     }
 
     async onload() {
-        this.componentsRegistry = (window as any)[EMERA_COMPONENTS_REGISTRY];
-
         await this.loadSettings();
         this.addSettingTab(new SettingTab(this.app, this));
         this.storage = createEmeraStorage(this);
@@ -76,7 +73,7 @@ export class EmeraPlugin extends Plugin {
             this.isFilesLoaded = true;
             await this.storage.init();
             const registry = await loadComponents(this);
-            Object.assign(this.componentsRegistry, registry);
+            this.rootScope.setMany(registry);
             this.isComponentsLoaded = true;
             this.resolveComponentsLoaded();
             eventBus.emit('onComponentsLoaded');
@@ -96,7 +93,7 @@ export class EmeraPlugin extends Plugin {
 
     refreshComponents = async () => {
         const registry = await loadComponents(this);
-        Object.assign(this.componentsRegistry, registry);
+        this.rootScope.setMany(registry);
 
         console.log('Emitting onComponentsReloaded');
         eventBus.emit('onComponentsReloaded');

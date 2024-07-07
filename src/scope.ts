@@ -24,6 +24,11 @@ export class ScopeNode {
         this.scheduleOnChange();
     }
 
+    setMany(mapping: Record<string, any>) {
+        Object.assign(this.scope, mapping);
+        this.scheduleOnChange();
+    }
+
     onChange(cb: VoidFunction) {
         this.listeners.add(cb);
         return () => this.listeners.delete(cb);
@@ -141,7 +146,7 @@ export const populateRootScope = (plugin: EmeraPlugin) => {
 };
 
 export const getPageScope = (plugin: EmeraPlugin, file: TFile) => {
-    const id = `page/${file}`;
+    const id = `page/${file.path}`;
     let scope = getScope(id);
     if (!scope) {
         scope = new ScopeNode(id);
