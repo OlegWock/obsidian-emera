@@ -8,6 +8,7 @@ import { ErrorAlert } from "../components/ErrorBoundary";
 import { iife } from "../utils";
 import { Root } from "react-dom/client";
 import { getPageScope } from "../scope";
+import { EmptyBlock } from "../components/EmptyBlock";
 
 export class BlockJsxProcessor extends UniversalMdProcessor {
     previewBaseSelector = 'pre > code';
@@ -42,6 +43,7 @@ export class BlockJsxProcessor extends UniversalMdProcessor {
         console.log(code);
 
         // TODO: this should be cached
+        // TODO: react to components reload
         if (code) {
             try {
                 const scope = getPageScope(this.plugin, ctx.file);
@@ -93,7 +95,7 @@ export class BlockJsxProcessor extends UniversalMdProcessor {
             }
         } else {
             renderComponent({
-                component: LoadingInline,
+                component: EmptyBlock,
                 container: wrapper,
                 plugin: this.plugin,
                 context: {

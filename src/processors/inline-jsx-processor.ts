@@ -27,6 +27,7 @@ export class InlineJsxProcessor extends UniversalMdProcessor {
 
         console.log('Processing inline JSX', code);
         // TODO: this should be cached
+        // TODO: react to components reload
         try {
             const scope = getPageScope(this.plugin, ctx.file);
             const reactRoot = renderComponent({
