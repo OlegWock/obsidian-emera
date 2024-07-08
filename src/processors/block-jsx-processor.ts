@@ -1,6 +1,6 @@
 import { SyntaxNodeRef } from "@lezer/common";
 import { UniversalMdProcessor, UniversalProcessorContext } from "./universal-md-processor";
-import { EMERA_INLINE_JSX_PREFIX, EMERA_JSX_LANG_NAME } from "../consts";
+import { EMERA_JSX_LANG_NAME } from "../consts";
 import { compileJsxIntoComponent } from "../bundler";
 import { renderComponent } from "../renderer";
 import { LoadingInline } from "../components/LoadingInline";
@@ -81,6 +81,17 @@ export class BlockJsxProcessor extends UniversalMdProcessor {
                 } else {
                     component = await compileJsxIntoComponent(code, scope);
                 }
+                await scope.waitForUnblock();
+
+                container = renderComponent({
+                    component,
+                    container,
+                    plugin: this.plugin,
+                    children: componentSpecifier ? code : undefined,
+                    context: {
+                        file: ctx.file,
+                    },
+                });
                 scope.onChange(async () => {
                     renderComponent({
                         component,
@@ -91,15 +102,6 @@ export class BlockJsxProcessor extends UniversalMdProcessor {
                             file: ctx.file,
                         },
                     });
-                });
-                container = renderComponent({
-                    component,
-                    container,
-                    plugin: this.plugin,
-                    children: componentSpecifier ? code : undefined,
-                    context: {
-                        file: ctx.file,
-                    },
                 });
             } catch (err) {
                 console.error(err);

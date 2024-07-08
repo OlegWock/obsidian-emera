@@ -39,6 +39,7 @@ export class InlineJsProcessor extends UniversalMdProcessor {
                 });
                 console.log('Transiped into');
                 console.log(transpiled);
+                await scope.waitForUnblock();
                 const module = await importFromString(transpiled);
                 scope.onChange(async () => {
                     let evaluated;

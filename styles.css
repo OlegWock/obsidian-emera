@@ -1,3 +1,8 @@
+
+.emera-block-js, .emera-block-jsx {
+    margin: var(--p-spacing) 0;
+}
+
 .emera-error-boundary {
     padding: 0.75rem;
     border-radius: 0.5rem;
@@ -14,12 +19,17 @@
 
 .emera-empty-block {
     padding: 0.75rem 1.5rem;
-    border-radius: 0.5rem;
+    border-radius: 0.25rem;
     background: var(--color-base-20);
     color: var(--color-base-50);
     font-size: 0.85rem;
     display: flex;
     gap: 0.5rem;
+}
+
+.theme-dark .emera-empty-block  {
+    background: var(--color-base-30);
+    color: var(--color-base-60);
 }
 
 .emera-loading-inline {
@@ -41,4 +51,14 @@
 .theme-dark .emera-inline-js {
     background: hsla(var(--color-accent-hsl), 0.4);
     color: var(--color-accent-2);
+}
+
+.emera-js-block-placeholder {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.25rem;
+    background: hsla(var(--color-accent-hsl), 0.15);
+    color: var(--color-accent);
+    font-size: 0.85rem;
+    display: flex;
+    gap: 0.5rem;
 }

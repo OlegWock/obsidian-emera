@@ -42,6 +42,8 @@ export class InlineJsxProcessor extends UniversalMdProcessor {
             await this.plugin.componentsLoadedPromise;
 
             const component = await compileJsxIntoComponent(code, scope);
+            await scope.waitForUnblock();
+            
             renderComponent({
                 component,
                 container: reactRoot,

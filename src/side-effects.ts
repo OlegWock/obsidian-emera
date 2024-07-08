@@ -13,7 +13,7 @@ import { getScope, ScopeNode } from './scope';
 
 // Add syntax highlight for emera
 registerCodemirrorMode(EMERA_JSX_LANG_NAME, 'jsx');
-registerCodemirrorMode(EMERA_JS_LANG_NAME, 'js');
+registerCodemirrorMode(EMERA_JS_LANG_NAME, 'javascript');
 
 // Expose modules
 (window as any)[EMERA_MODULES] = new Proxy({

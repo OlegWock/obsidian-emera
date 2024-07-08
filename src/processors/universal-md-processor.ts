@@ -20,6 +20,8 @@ import { emeraCurrentEditorStateField, findCurrentView, isCursorBetweenNodes, is
 
 export type UniversalProcessorContext = {
     file: TFile,
+    index: number,
+    total: number,
 } & ({
     mode: 'preview'
     originalPreviewElement: Element
@@ -50,11 +52,13 @@ export abstract class UniversalMdProcessor {
         const file = this.plugin.app.vault.getFileByPath(ctx.sourcePath)!;
         const candidates = Array.from(el.querySelectorAll(this.previewBaseSelector));
         const toProcess = candidates.filter(el => this.shouldProcessPreviewElement(el));
-        toProcess.forEach(el => {
+        toProcess.forEach((el, index) => {
             const content = el.textContent ?? '';
             const replacement = document.createElement(this.inline ? 'span' : 'div');
             this.process(replacement, content, {
                 file,
+                index,
+                total: toProcess.length,
                 mode: 'preview',
                 originalPreviewElement: el,
             });
@@ -96,6 +100,8 @@ export abstract class UniversalMdProcessor {
 
                 let startNode: SyntaxNode | null = null;
 
+                const toProcess: { startNode: SyntaxNode, endNode: SyntaxNode, content: string }[] = [];
+
                 syntaxTree(state).iterate({
                     enter: (node) => {
                         const nodeContent = state.doc.sliceString(node.from, node.to);
@@ -109,15 +115,7 @@ export abstract class UniversalMdProcessor {
                                 return;
                             }
 
-                            const widget = new parent.CodeMirrorWidget(nodeContent, {
-                                file,
-                                mode: 'edit',
-                            });
-                            builder.add(
-                                node.from,
-                                node.to,
-                                Decoration.replace({ widget })
-                            );
+                            toProcess.push({ startNode: node.node, endNode: node.node, content: nodeContent });
                         } else {
                             const mark = parent.shouldProcessEditorNode(node, nodeContent);
 
@@ -130,21 +128,27 @@ export abstract class UniversalMdProcessor {
                             } else if (mark === 'end' && !!startNode) {
                                 if (!isCursorBetweenNodes(state, startNode, node)) {
                                     const text = state.doc.sliceString(startNode.from, node.to).trim();
-                                    const widget = new parent.CodeMirrorWidget(text, {
-                                        file,
-                                        mode: 'edit',
-                                    });
-                                    builder.add(
-                                        startNode.from - 1,
-                                        node.to + 1,
-                                        Decoration.replace({ widget })
-                                    );
+                                    toProcess.push({ startNode, endNode: node.node, content: text });
                                 }
 
                                 startNode = null
                             }
                         }
                     },
+                });
+
+                toProcess.forEach((el, index) => {
+                    const widget = new parent.CodeMirrorWidget(el.content, {
+                        file,
+                        mode: 'edit',
+                        index,
+                        total: toProcess.length,
+                    });
+                    builder.add(
+                        parent.editorModeOfOperation === 'single' ? el.startNode.from : el.startNode.from - 1,
+                        parent.editorModeOfOperation === 'single' ? el.endNode.to : el.endNode.to + 1,
+                        Decoration.replace({ widget })
+                    );
                 });
 
                 return builder.finish();

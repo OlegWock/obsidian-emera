@@ -7,10 +7,12 @@ import { safeCall } from './utils';
 export class ScopeNode {
     public parent: ScopeNode | null = null;
     public children: ScopeNode[] = [];
-    public descendantsMap: Record<string, ScopeNode> = {};
     public scope: Record<string, any>;
-    public listeners: Set<VoidFunction> = new Set();
+
+    private descendantsMap: Record<string, ScopeNode> = {};
+    private listeners: Set<VoidFunction> = new Set();
     private willInvokeListeners = false;
+    private unblockPromiseWithResolvers: null | ReturnType<typeof Promise.withResolvers<void>> = null;
 
     constructor(public id: string) {
         this.reset();
@@ -35,6 +37,33 @@ export class ScopeNode {
         return () => this.listeners.delete(cb);
     }
 
+    get isBlocked(): boolean {
+        if (this.parent) {
+            return !!this.unblockPromiseWithResolvers || this.parent.isBlocked;    
+        }
+        return !!this.unblockPromiseWithResolvers;
+    }
+
+    block() {
+        if (!this.unblockPromiseWithResolvers) {
+            this.unblockPromiseWithResolvers = Promise.withResolvers<void>();
+        }
+    }
+
+    unblock() {
+        if (this.unblockPromiseWithResolvers) {
+            this.unblockPromiseWithResolvers.resolve();
+            this.unblockPromiseWithResolvers = null;
+        }
+    }
+
+    waitForUnblock() {
+        const blockedScope = this.findUp((scope) => scope.isBlocked);
+        if (blockedScope) {
+            return blockedScope.unblockPromiseWithResolvers!.promise;
+        }
+        return Promise.resolve();
+    }
 
     private scheduleOnChange() {
         if (this.willInvokeListeners) return
@@ -102,7 +131,7 @@ export class ScopeNode {
         let results: T[] = [];
         do {
             results.push(cb(scope));
-            scope = this.parent;
+            scope = scope.parent;
         } while (scope);
         return results;
     }
@@ -111,7 +140,7 @@ export class ScopeNode {
         let scope: ScopeNode | null = this;
         do {
             if (cb(scope)) return scope;
-            scope = this.parent;
+            scope = scope.parent;
         } while (scope);
         return null;
     }
@@ -151,7 +180,6 @@ export const getPageScope = (plugin: EmeraPlugin, file: TFile) => {
 
         plugin.app.metadataCache.on('changed', (changedFile, data) => {
             if (file.path === changedFile.path) {
-                console.log('File changed', file, data);
                 const frontmatter = plugin.app.metadataCache.getFileCache(file)?.frontmatter;
                 // TODO: might want to compare old and new and don't re-render whole page in case 
                 // user is just editing body of the note. Should be cheaper at least
