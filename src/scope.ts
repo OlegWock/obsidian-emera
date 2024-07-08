@@ -2,6 +2,7 @@ import * as obsidian from 'obsidian';
 import { EMERA_ROOT_SCOPE } from "./consts";
 import type { EmeraPlugin } from "./plugin";
 import { TFile } from 'obsidian';
+import { safeCall } from './utils';
 
 export class ScopeNode {
     public parent: ScopeNode | null = null;
@@ -45,13 +46,7 @@ export class ScopeNode {
     }
 
     private invokeListeners() {
-        this.listeners.forEach((cb) => {
-            try { 
-                cb();
-            } catch (err) {
-                console.error(err);
-            }
-        });
+        this.listeners.forEach(safeCall);
         this.children.forEach(child => child.invokeListeners());
     }
 

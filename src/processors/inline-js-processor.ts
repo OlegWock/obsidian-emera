@@ -35,7 +35,6 @@ export class InlineJsProcessor extends UniversalMdProcessor {
 
                 const transpiled = transpileCode(`export default () => ${code}`, {
                     rewriteImports: false,
-                    rewriteUnbindedJsxComponents: false,
                     scope,
                 });
                 console.log('Transiped into');
