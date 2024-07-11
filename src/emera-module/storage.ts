@@ -13,8 +13,12 @@ export const createEmeraStorage = (plugin: EmeraPlugin) => {
     const init = async () => {
         const exists = await plugin.app.vault.adapter.exists(filePath);
         if (exists) {
-            const content = await plugin.app.vault.adapter.read(filePath);
-            state = JSON.parse(content);
+            try {
+                const content = await plugin.app.vault.adapter.read(filePath);
+                state = JSON.parse(content);
+            } catch (err) {
+                console.log(`Emera storage file exists, but Emera couldn't read or parse it`);
+            }
         }
     };
 

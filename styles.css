@@ -1,6 +1,6 @@
 
 .emera-block-js, .emera-block-jsx {
-    margin: var(--p-spacing) 0;
+    margin: 0.5rem 0;
 }
 
 .emera-error-boundary {

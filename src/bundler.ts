@@ -9,13 +9,8 @@ import { getScope, ScopeNode } from './scope';
 // @ts-ignore not included in package types, but it's there!
 const t = Babel.packages.types;
 
-const globalVars = new Set([
+const someGlobalVars = new Set([
     'window', 'self', 'globalThis', 'document', 'console', 'app',
-    'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval',
-    'addEventListener', 'removeEventListener', 'localStorage', 'sessionStorage',
-    'fetch', 'XMLHttpRequest', 'JSON', 'Math', 'Date', 'Array', 'Object',
-    'String', 'Number', 'Boolean', 'RegExp', 'Map', 'Set', 'Promise',
-    'Error', 'undefined', 'NaN', 'Infinity',
 
     // Not really globals, but due to how Babel works, our plugin might replace those
     // before react plugin will add related imports, so we explicitly ignore them
@@ -157,6 +152,35 @@ function scopeRewriter() {
         return false;
     }
 
+    function isPartOfTypeofUndefinedCheck(nodePath: any) {
+        const path = nodePath.type ? nodePath : nodePath.get('expression');
+
+        // Check if it's not an Identifier
+        if (path.node.type !== 'Identifier') {
+            return false;
+        }
+
+        let parentPath = path.parentPath;
+
+        // Check if it's the operand of a typeof operator
+        if (parentPath &&
+            parentPath.isUnaryExpression({ operator: 'typeof' })) {
+            return true;
+        }
+
+        // Check if it's the alternate of a ConditionalExpression (ternary)
+        if (parentPath && parentPath.isConditionalExpression() && parentPath.node.alternate === path.node) {
+            const test =  parentPath.node.test;
+            if (!test || test.type !== 'BinaryExpression' || (test.operator !== '===' && test.operator !== '==')) return false;
+            const isUnary = (node: any) => node.type === "UnaryExpression" && node.operator === 'typeof' && node.argument.type === 'Identifier' && node.argument.name === path.node.name;
+            const isUndefined = (node: any) => node.type === 'StringLiteral' && node.value === 'undefined';
+
+            return (isUnary(test.left) && isUndefined(test.right)) || (isUnary(test.right) && isUndefined(test.left));
+        }
+
+        return false;
+    }
+
     return {
         // Need to run this last
 
@@ -169,7 +193,7 @@ function scopeRewriter() {
                 const firstIdentifier = isStandaloneOrFirstInChain(path);
                 if (!firstIdentifier) return;
                 if (!path.isReferencedIdentifier()) return;
-                if (globalVars.has(name)) return;
+                if (someGlobalVars.has(name)) return;
 
                 const binding = path.scope.getBinding(name);
                 if (binding) return;
@@ -177,22 +201,40 @@ function scopeRewriter() {
                 if (isPartOfObjectPattern(path)) return;
                 if (isIdentifierReExported(path)) return;
                 if (isObjectKey(path)) return;
+                if (isPartOfTypeofUndefinedCheck(path)) return;
 
                 // console.log(`Candidate for scoping: ${name}`);
 
-                const replacement = t.callExpression(
-                    t.memberExpression(
+                const replacement = t.parenthesizedExpression(
+                    t.conditionalExpression(
+                        t.binaryExpression(
+                            '===',
+                            t.unaryExpression(
+                                'typeof',
+                                t.identifier(name)
+                            ),
+                            t.stringLiteral('undefined')
+                        ),
                         t.callExpression(
                             t.memberExpression(
-                                t.identifier('window'),
-                                t.identifier(EMERA_GET_SCOPE)
+                                t.callExpression(
+                                    t.memberExpression(
+                                        t.identifier('window'),
+                                        t.identifier(EMERA_GET_SCOPE)
+                                    ),
+                                    [t.stringLiteral(scope.id)]
+                                ),
+                                t.identifier('get')
                             ),
-                            [t.stringLiteral(scope.id)]
+                            [t.stringLiteral(name)]
                         ),
-                        t.identifier('get')
-                    ),
-                    [t.stringLiteral(name)]
+                        t.identifier(name)
+                    )
                 );
+
+                // console.log('Replacing node with');
+                // @ts-ignore
+                // console.log(Babel.packages.generator.default(replacement).code);
 
                 path.replaceWith(replacement);
 
@@ -211,6 +253,7 @@ export const transpileCode = (
     code: string,
     { rewriteImports = true, scope }: TranspileCodeOptions = {}) => {
     const transpiled = Babel.transform(code, {
+        sourceType: "unambiguous",
         presets: [
             [
                 Babel.availablePresets['react'],
@@ -323,6 +366,10 @@ export const importFromString = (code: string) => {
     return import(encodedCode);
 };
 
+// TODO: actually, instead of using this function on whole code block, we instead need to
+// create wrapper component once and change what is rendered inside of it. This way,
+// root component will be stable which will allow React properly reconcile updates instead
+// of re-rendering whole tree
 export const compileJsxIntoComponent = async (jsx: string, scope?: ScopeNode): Promise<ComponentType<{}>> => {
     const source = `export default () => (<>${jsx}</>);`;
     // console.log('====== Scope', scope);

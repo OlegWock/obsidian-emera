@@ -6,12 +6,14 @@
     "module": "ESNext",
     "target": "ES2020",
     "allowJs": true,
+    "allowSyntheticDefaultImports": true,
     "noImplicitAny": true,
     "jsx": "react-jsx",
     "moduleResolution": "node",
     "importHelpers": true,
     "isolatedModules": true,
 	"strictNullChecks": true,
+    "skipLibCheck": true,
     "lib": [
       "DOM",
       "ES5",
@@ -23,6 +25,7 @@
     ]
   },
   "include": [
+    "./declarations.d.ts",
     "**/*.ts",
     "**/*.tsx"
   ]

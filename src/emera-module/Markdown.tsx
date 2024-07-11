@@ -3,7 +3,7 @@ import { ComponentProps, useEffect, useRef } from "react";
 import { useEmeraContext } from './context';
 import { mergeRefs } from "react-merge-refs";
 
-export const Markdown = ({ children, ref, ...props }: { children: string } & Omit<ComponentProps<"div">, "children">) => {
+export const Markdown = ({ children, ref, as: Component = 'div', ...props }: { children: string, as: string } & Omit<ComponentProps<"div">, "children">) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const ctx = useEmeraContext();
 
@@ -18,5 +18,7 @@ export const Markdown = ({ children, ref, ...props }: { children: string } & Omi
             ctx.plugin,
         );
     }, []);
-    return <div {...props} ref={mergeRefs([containerRef, ref])}></div>;
+
+    // @ts-ignore
+    return <Component {...props} ref={mergeRefs([containerRef, ref])}></Component>;
 };

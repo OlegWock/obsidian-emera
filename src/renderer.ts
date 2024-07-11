@@ -9,7 +9,7 @@ export type RenderComponentParams<P extends Record<string, any>> = {
     component: ComponentType<P>,
     plugin: EmeraPlugin,
     children?: ReactNode,
-    context: Omit<EmeraContextType, 'plugin' | 'storage' | 'frontmatter'>,
+    context: Omit<EmeraContextType, 'plugin' | 'storage' | 'frontmatter' | 'app'>,
     props?: P
 };
 
@@ -28,6 +28,7 @@ export const renderComponent = <P extends Record<string, any>>({ component, cont
             value: {
                 ...context,
                 plugin,
+                app: plugin.app,
                 storage: plugin.storage,
                 frontmatter,
             },
