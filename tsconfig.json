@@ -25,7 +25,6 @@
     ]
   },
   "include": [
-    "./declarations.d.ts",
     "**/*.ts",
     "**/*.tsx"
   ]

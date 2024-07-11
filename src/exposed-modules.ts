@@ -5,10 +5,10 @@ import * as jotai from 'jotai';
 import * as jotaiUtils from 'jotai/utils';
 import * as reactDom from 'react-dom';
 import * as jsxRuntime from 'react/jsx-runtime';
-import { emeraModule } from './emera-module';
+import * as emera from './emera-module';
 
 export const exposedModules = {
-    emera: emeraModule,
+    emera,
     react,
     obsidian,
     jotai,

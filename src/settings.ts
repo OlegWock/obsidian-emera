@@ -1,10 +1,10 @@
-import type MyPlugin from "main";
+import type { EmeraPlugin } from "./plugin";
 import { PluginSettingTab, App, Setting, Notice } from "obsidian";
 
 export class SettingTab extends PluginSettingTab {
-    plugin: MyPlugin;
+    plugin: EmeraPlugin;
 
-    constructor(app: App, plugin: MyPlugin) {
+    constructor(app: App, plugin: EmeraPlugin) {
         super(app, plugin);
         this.plugin = plugin;
     }
