@@ -1,16 +1,12 @@
 import { App, MarkdownView, Plugin, PluginManifest } from 'obsidian';
 import { SettingTab } from './settings';
-import { ComponentType } from 'react';
 import { loadComponents } from './bundler';
 import { EMERA_ROOT_SCOPE } from './consts';
 import { eventBus } from './events';
 import { createEmeraStorage, EmeraStorage } from './emera-module/storage';
 import { populateRootScope, ScopeNode } from './scope';
-import { InlineJsProcessor } from './processors/inline-js-processor';
-import { InlineJsxProcessor } from './processors/inline-jsx-processor';
-import { BlockJsxProcessor } from './processors/block-jsx-processor';
 import { emeraCurrentEditorProviderPlugin, emeraCurrentEditorStateField } from './processors/utils';
-import { BlockJsProcessor } from './processors/block-js-processor';
+import { EmeraCodeProcessor } from './processors/code-processor';
 
 interface PluginSettings {
     componentsFolder: string;
@@ -29,10 +25,8 @@ export class EmeraPlugin extends Plugin {
     private resolveComponentsLoaded: VoidFunction;
     storage: EmeraStorage;
     rootScope: ScopeNode;
-    inlineJsProcessor: InlineJsProcessor;
-    inlineJsxProcessor: InlineJsxProcessor;
-    blockJsxProcessor: BlockJsxProcessor;
-    blockJsProcessor: BlockJsProcessor;
+
+    codeProcessor: EmeraCodeProcessor;
 
     constructor(app: App, manifest: PluginManifest) {
         super(app, manifest);
@@ -46,10 +40,7 @@ export class EmeraPlugin extends Plugin {
         this.rootScope = (window as any)[EMERA_ROOT_SCOPE];
         populateRootScope(this);
 
-        this.inlineJsProcessor = new InlineJsProcessor(this);
-        this.inlineJsxProcessor = new InlineJsxProcessor(this);
-        this.blockJsProcessor = new BlockJsProcessor(this);
-        this.blockJsxProcessor = new BlockJsxProcessor(this);
+        this.codeProcessor = new EmeraCodeProcessor(this);
     }
 
     async onload() {
@@ -57,18 +48,12 @@ export class EmeraPlugin extends Plugin {
         this.addSettingTab(new SettingTab(this.app, this));
         this.storage = createEmeraStorage(this);
 
-        this.registerMarkdownPostProcessor(this.blockJsProcessor.markdownPostProcessor);
-        this.registerMarkdownPostProcessor(this.blockJsxProcessor.markdownPostProcessor);
-        this.registerMarkdownPostProcessor(this.inlineJsProcessor.markdownPostProcessor);
-        this.registerMarkdownPostProcessor(this.inlineJsxProcessor.markdownPostProcessor);
+        this.registerMarkdownPostProcessor(this.codeProcessor.markdownPostProcessor);
 
         this.registerEditorExtension([
             emeraCurrentEditorProviderPlugin,
             emeraCurrentEditorStateField,
-            this.blockJsProcessor.codemirrorStateField,
-            this.blockJsxProcessor.codemirrorStateField,
-            this.inlineJsProcessor.codemirrorStateField,
-            this.inlineJsxProcessor.codemirrorStateField,
+            this.codeProcessor.codemirrorStateField,
         ]);
 
 

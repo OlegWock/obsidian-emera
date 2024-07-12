@@ -27,7 +27,7 @@ export const isCursorBetweenNodes = (state: EditorState, node1: SyntaxNodeRef, n
 };
 
 export const isCursorInsideNode = (state: EditorState, node: SyntaxNodeRef) => {
-    // TODO: Perhaps this should be `isCursoreInsideSameLine` 
+    // TODO: Perhaps this should be `isCursorInsideSameLine` 
     return isCursorBetweenNodes(state, node, node);
 };
 

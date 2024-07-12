@@ -22,6 +22,12 @@ export class ScopeNode {
         return this.scope[prop];
     }
 
+    has(prop: string): boolean {
+        if (Object.hasOwn(this.scope, prop)) return true;
+        if (this.parent) return this.parent.has(prop);
+        return false;
+    }
+  
     set(prop: string, val: any) {
         this.scope[prop] = val;
         this.scheduleOnChange();
@@ -58,7 +64,7 @@ export class ScopeNode {
     }
 
     waitForUnblock() {
-        const blockedScope = this.findUp((scope) => scope.isBlocked);
+        const blockedScope = this.findUp((scope) => !!scope.unblockPromiseWithResolvers);
         if (blockedScope) {
             return blockedScope.unblockPromiseWithResolvers!.promise;
         }
@@ -123,6 +129,10 @@ export class ScopeNode {
             this.parent.children.splice(this.parent.children.indexOf(this));
             this.parent.removeDescendant(this);
         }
+        this.children.forEach(child => child.dispose());
+    }
+
+    disposeDescendants() {
         this.children.forEach(child => child.dispose());
     }
 

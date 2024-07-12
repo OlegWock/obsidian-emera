@@ -1,5 +1,5 @@
 import { EMERA_GET_SCOPE, EMERA_JS_LANG_NAME, EMERA_JSX_LANG_NAME, EMERA_MODULES, EMERA_ROOT_SCOPE } from "./consts";
-import { registerCodemirrorMode } from './editor';
+import { registerCodemirrorMode } from './utils';
 import { exposedModules } from "./exposed-modules";
 import { getScope, ScopeNode } from './scope';
 

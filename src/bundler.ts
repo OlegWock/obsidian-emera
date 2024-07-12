@@ -170,12 +170,48 @@ function scopeRewriter() {
 
         // Check if it's the alternate of a ConditionalExpression (ternary)
         if (parentPath && parentPath.isConditionalExpression() && parentPath.node.alternate === path.node) {
-            const test =  parentPath.node.test;
+            const test = parentPath.node.test;
             if (!test || test.type !== 'BinaryExpression' || (test.operator !== '===' && test.operator !== '==')) return false;
             const isUnary = (node: any) => node.type === "UnaryExpression" && node.operator === 'typeof' && node.argument.type === 'Identifier' && node.argument.name === path.node.name;
             const isUndefined = (node: any) => node.type === 'StringLiteral' && node.value === 'undefined';
 
             return (isUnary(test.left) && isUndefined(test.right)) || (isUnary(test.right) && isUndefined(test.left));
+        }
+
+        return false;
+    }
+
+    function isPartOfScopeHasCheck(path: any, identifierName: string) {
+        // Check if the identifier is part of a conditional expression
+        const conditionalExpression = path.findParent((p: any) => p.isConditionalExpression());
+        if (!conditionalExpression) return false;
+
+        console.log('isPartOfScopeHasCheck', conditionalExpression);
+        // Check the structure of the test part of the conditional
+        const test = conditionalExpression.get("test");
+        if (!test.isCallExpression()) return false;
+
+        const callee = test.get("callee");
+        if (!callee.isMemberExpression()) return false;
+
+        // Check if it matches window._emeraGetScope("test").has("<identifier>")
+        if (
+            callee.get("object").get('callee').matchesPattern(`window.${EMERA_GET_SCOPE}`) &&
+            callee.get("property").isIdentifier({ name: "has" }) &&
+            test.get("arguments")[0].isStringLiteral({ value: identifierName })
+        ) {
+            const consequent = conditionalExpression.get("consequent");
+            if (
+                consequent.isCallExpression() &&
+                consequent.get("callee").isMemberExpression() &&
+                consequent.get("callee").get("object").get('callee').matchesPattern("window._emeraGetScope") &&
+                consequent.get("callee").get("property").isIdentifier({ name: "get" }) &&
+                consequent.get("arguments")[0].isStringLiteral({ value: identifierName })
+            ) {
+                // Check the alternate part
+                const alternate = conditionalExpression.get("alternate");
+                return alternate.isIdentifier({ name: identifierName });
+            }
         }
 
         return false;
@@ -202,18 +238,24 @@ function scopeRewriter() {
                 if (isIdentifierReExported(path)) return;
                 if (isObjectKey(path)) return;
                 if (isPartOfTypeofUndefinedCheck(path)) return;
+                if (isPartOfScopeHasCheck(path, name)) return;
 
-                // console.log(`Candidate for scoping: ${name}`);
+                console.log(`Candidate for scoping: ${name}`);
 
                 const replacement = t.parenthesizedExpression(
                     t.conditionalExpression(
-                        t.binaryExpression(
-                            '===',
-                            t.unaryExpression(
-                                'typeof',
-                                t.identifier(name)
+                        t.callExpression(
+                            t.memberExpression(
+                                t.callExpression(
+                                    t.memberExpression(
+                                        t.identifier('window'),
+                                        t.identifier(EMERA_GET_SCOPE)
+                                    ),
+                                    [t.stringLiteral(scope.id)]
+                                ),
+                                t.identifier('has')
                             ),
-                            t.stringLiteral('undefined')
+                            [t.stringLiteral(name)]
                         ),
                         t.callExpression(
                             t.memberExpression(
@@ -371,7 +413,9 @@ export const importFromString = (code: string) => {
 // root component will be stable which will allow React properly reconcile updates instead
 // of re-rendering whole tree
 export const compileJsxIntoComponent = async (jsx: string, scope?: ScopeNode): Promise<ComponentType<{}>> => {
-    const source = `export default () => (<>${jsx}</>);`;
+    const source = `export default () => {
+        return (<>${jsx}</>);
+    };`;
     // console.log('====== Scope', scope);
     // console.log('====== Original JSX');
     // console.log(jsx);

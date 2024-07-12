@@ -20,5 +20,5 @@ export const Markdown = ({ children, ref, as: Component = 'div', ...props }: { c
     }, []);
 
     // @ts-ignore
-    return <Component {...props} ref={mergeRefs([containerRef, ref])}></Component>;
+    return <Component {...props} data-emera-markdown ref={mergeRefs([containerRef, ref])}></Component>;
 };
