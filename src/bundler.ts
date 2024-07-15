@@ -186,7 +186,6 @@ function scopeRewriter() {
         const conditionalExpression = path.findParent((p: any) => p.isConditionalExpression());
         if (!conditionalExpression) return false;
 
-        console.log('isPartOfScopeHasCheck', conditionalExpression);
         // Check the structure of the test part of the conditional
         const test = conditionalExpression.get("test");
         if (!test.isCallExpression()) return false;
@@ -239,8 +238,6 @@ function scopeRewriter() {
                 if (isObjectKey(path)) return;
                 if (isPartOfTypeofUndefinedCheck(path)) return;
                 if (isPartOfScopeHasCheck(path, name)) return;
-
-                console.log(`Candidate for scoping: ${name}`);
 
                 const replacement = t.parenthesizedExpression(
                     t.conditionalExpression(
@@ -403,7 +400,10 @@ export const bundleFile = async (plugin: EmeraPlugin, path: string) => {
     return output[0].code;
 };
 
-export const importFromString = (code: string) => {
+export const importFromString = (code: string, ignoreCache = true) => {
+    if (ignoreCache) {
+        code = `// Cache buster: ${Math.random()}\n\n` + code;
+    }
     const encodedCode = `data:text/javascript;charset=utf-8,${encodeURIComponent(code)}`;
     return import(encodedCode);
 };

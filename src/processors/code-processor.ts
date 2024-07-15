@@ -51,6 +51,7 @@ type ToProcessEditorRecord = {
     startNode: SyntaxNode,
     endNode: SyntaxNode,
     content: string,
+    cursorInside: boolean,
     shortcutComponent?: string,
 };
 type ToProcessPreviewRecord = {
@@ -118,9 +119,9 @@ export class EmeraCodeProcessor {
 
             const component = await compileJsxIntoComponent(code, ctx.readScope);
             await ctx.readScope.waitForUnblock();
-            console.log('Processing inline JSX', code);
-            console.log('Compiled into', component);
-            console.log('Using scope', ctx.readScope, {...ctx.readScope.scope});
+            // console.log('Processing inline JSX', code);
+            // console.log('Compiled into', component);
+            // console.log('Using scope', ctx.readScope, { ...ctx.readScope.scope });
             renderComponent({
                 component,
                 container: reactRoot,
@@ -149,10 +150,15 @@ export class EmeraCodeProcessor {
         });
 
         const transpiled = transpileCode(code, { scope: ctx.readScope });
+        const id = Math.round(Math.random() * 1000);
+        console.log(id, 'Waiting for scope to execute', transpiled);
         await ctx.readScope.waitForUnblock();
+        console.log(id, 'Scope unblocked');
         const module = await importFromString(transpiled);
-        console.log('Exported members to be added to scope', module);
+        console.log(id, 'Exported members to be added to scope', { ...module });
+        ctx.writeScope.reset();
         ctx.writeScope.setMany(module);
+        console.log(id, 'Unblocking write scope');
         ctx.writeScope.unblock();
     };
 
@@ -172,7 +178,7 @@ export class EmeraCodeProcessor {
                         context: {
                             file: ctx.file,
                         },
-                    });   
+                    });
                 }
 
                 let component: ComponentType<any>;
@@ -236,7 +242,7 @@ export class EmeraCodeProcessor {
             }
 
             eq(widget: CodeMirrorWidget): boolean {
-                return this.renderKey === 'empty' ? true : this.renderKey === widget.renderKey;
+                return this.renderKey === widget.renderKey;
             }
 
             toDOM(view: EditorView): HTMLElement {
@@ -397,11 +403,18 @@ export class EmeraCodeProcessor {
     // just use older values to render the components
     codemirrorStateField = iife(() => {
         const parent = this;
-        return StateField.define<DecorationSet>({
-            create(state): DecorationSet {
-                return Decoration.none;
+        type PluginState = {
+            decorations: DecorationSet,
+            cache: { type: string, content: string, key: string, cursorInside: boolean }[],
+        };
+        return StateField.define<PluginState>({
+            create(state): PluginState {
+                return {
+                    decorations: Decoration.none,
+                    cache: [],
+                };
             },
-            update(oldState: DecorationSet, transaction: Transaction): DecorationSet {
+            update(oldState: PluginState, transaction: Transaction): PluginState {
                 // console.log('Transaction', transaction);
                 const builder = new RangeSetBuilder<Decoration>();
                 const state = transaction.state;
@@ -412,62 +425,60 @@ export class EmeraCodeProcessor {
                     return oldState;
                 }
 
-                const widgetRanges = iife(() => {
-                    const result: [number, number][] = [];
-                    const iter = oldState.iter();
-                    while (iter.value) {
-                        result.push([iter.from, iter.to]);
-                        iter.next();
-                    }
-
-                    return result;
-                });
-
                 const editor = state.field(emeraCurrentEditorStateField);
                 if (!editor) {
                     console.log(`[EDITOR] Can't get editor view, skipping`);
-                    return builder.finish();
+                    return {
+                        decorations: builder.finish(),
+                        cache: [],
+                    };
                 }
 
                 const mdView = findCurrentView(parent.plugin, editor);
                 if (!mdView) {
                     console.log(`[EDITOR] Can't find current view, skipping`);
-                    return builder.finish();
+                    return {
+                        decorations: builder.finish(),
+                        cache: [],
+                    };
                 }
 
                 const mdViewState = mdView.getState();
                 // Don't do anything in Source mode, we care only about LivePreview
                 if (mdViewState.mode === 'source' && mdViewState.source) {
                     console.log(`[EDITOR] Editor in source mode, skipping`);
-                    return builder.finish();
+                    return {
+                        decorations: builder.finish(),
+                        cache: [],
+                    };
                 }
 
                 const file = mdView?.file;
                 if (!file) {
                     console.log(`[EDITOR] Couldn't find file, skipping`);
-                    return builder.finish();
+                    return {
+                        decorations: builder.finish(),
+                        cache: [],
+                    };
                 }
 
                 let currentBlockStartNode: SyntaxNode | null = null;
                 let currentBlockStartType: 'block-js' | 'block-jsx' | null = null;
 
                 const toProcess: ToProcessEditorRecord[] = [];
-                const codeBlockRanges: [number, number][] = [];
 
                 syntaxTree(state).iterate({
                     enter: (node) => {
                         const nodeContent = state.doc.sliceString(node.from, node.to);
 
                         if (node.type.name.startsWith('inline-code') && (nodeContent.startsWith(EMERA_INLINE_JS_PREFIX) || nodeContent.startsWith(EMERA_INLINE_JSX_PREFIX))) {
-                            if (!isCursorBetweenNodes(state, node, node)) {
-                                toProcess.push({
-                                    type: nodeContent.startsWith(EMERA_INLINE_JS_PREFIX) ? 'inline-js' : 'inline-jsx',
-                                    startNode: node.node,
-                                    endNode: node.node,
-                                    content: nodeContent,
-                                });
-                            }
-                            codeBlockRanges.push([node.from, node.to]);
+                            toProcess.push({
+                                type: nodeContent.startsWith(EMERA_INLINE_JS_PREFIX) ? 'inline-js' : 'inline-jsx',
+                                startNode: node.node,
+                                endNode: node.node,
+                                content: nodeContent,
+                                cursorInside: isCursorBetweenNodes(state, node, node),
+                            });
                         }
 
                         const isFenceStart = node.type.name.includes('HyperMD-codeblock-begin');
@@ -484,20 +495,17 @@ export class EmeraCodeProcessor {
                             const match = regex.exec(text);
 
                             if (match) {
-                                if (!isCursorBetweenNodes(state, currentBlockStartNode, node)) {
-                                    const componentSpecifier = match[2];
-                                    const code = match[3]
+                                const componentSpecifier = match[2];
+                                const code = match[3]
 
-                                    toProcess.push({
-                                        type: currentBlockStartType!,
-                                        startNode: currentBlockStartNode,
-                                        endNode: node.node,
-                                        content: code,
-                                        shortcutComponent: componentSpecifier ?? undefined,
-                                    });
-                                }
-
-                                codeBlockRanges.push([currentBlockStartNode.from, node.to]);
+                                toProcess.push({
+                                    type: currentBlockStartType!,
+                                    startNode: currentBlockStartNode,
+                                    endNode: node.node,
+                                    content: code,
+                                    cursorInside: isCursorBetweenNodes(state, currentBlockStartNode, node),
+                                    shortcutComponent: componentSpecifier ?? undefined,
+                                });
                             }
 
                             currentBlockStartNode = null;
@@ -507,42 +515,75 @@ export class EmeraCodeProcessor {
                 });
 
                 if (toProcess.length === 0) {
-                    return builder.finish();
+                    return {
+                        decorations: builder.finish(),
+                        cache: [],
+                    };
                 }
-
-                let renderKey = importantUpdate ? Math.random().toString() : 'empty';
-
-                if (widgetRanges.length === toProcess.length) {
-                    // Users did not added/deleted blocks, we can exit early if all changed happened outside our code blocks
-                    // TODO: we can optimize thif further and re-render only affected components if change is inside inline-js(x) or block-jsx,
-                    // and re-render whole page only if block-js component changed
-                    let hasChangesInCodeBlocks = false;
-                    transaction.changes.iterChangedRanges((changeStart, changeEnd) => {
-                        const inCodeBlock = codeBlockRanges.some(([widgetStart, widgetEnd]) => Math.max(widgetStart, changeStart) <= Math.min(widgetEnd, changeEnd));
-                        if (inCodeBlock) {
-                            hasChangesInCodeBlocks = true;
-                        }
-                    });
-                    console.log('Did any change happen inside code block', hasChangesInCodeBlocks);
-                    if (!hasChangesInCodeBlocks) {
-                        renderKey = 'empty';
-                    }
-                }
-
 
                 console.log('[EDITOR] Will process nodes', toProcess);
                 const pageScope = getPageScope(parent.plugin, file);
-                console.log('[EDITOR] Disposing page scope descendants', pageScope.id);
-                pageScope.disposeDescendants();
+                // console.log('[EDITOR] Disposing page scope descendants', pageScope.id);
+                // pageScope.disposeDescendants();
 
+                const cache: PluginState["cache"] = [];
+                let shouldForceCached = false;
+                let shouldReevaluate = false;
                 let readScope = pageScope;
+
+                console.log('Old cache', oldState.cache);
+                console.log('To Process', toProcess);
                 toProcess.forEach((el, index) => {
-                    let writeScope = getScope(`page/${file.path}/${index}`);
-                    if (writeScope) {
-                        writeScope.dispose();
+                    const cacheEntry = oldState.cache[index];
+                    if (el.cursorInside) {
+                        shouldForceCached = true;
                     }
-                    writeScope = new ScopeNode(`page/${file.path}/${index}`);
-                    readScope.addChild(writeScope);
+                    const renderKey = iife(() => {
+                        const randomKey = Math.random().toString();
+                        if (cacheEntry && cacheEntry.cursorInside && !el.cursorInside) {
+                            if (cacheEntry.type === 'block-js' || el.type === 'block-js') {
+                                shouldReevaluate = true;
+                            }
+                            return randomKey;
+                        };
+                        if (shouldForceCached) return cacheEntry?.key ?? randomKey;
+                        if (!cacheEntry || shouldReevaluate) return randomKey;
+                        if (cacheEntry.type === el.type && cacheEntry.content === el.content) return cacheEntry.key;
+
+                        if (cacheEntry.type === 'block-js' || el.type === 'block-js') {
+                            shouldReevaluate = true;
+                            return randomKey;
+                        }
+
+                        return randomKey;
+                    });
+
+                    console.log('Record', index, el.type, 'render key', renderKey, `(old key ${cacheEntry?.key})`);
+
+
+                    cache.push({
+                        type: el.type,
+                        content: el.content,
+                        key: renderKey,
+                        cursorInside: el.cursorInside,
+                    });
+
+                    let writeScope = getScope(`page/${file.path}/${index}`);
+                    if (!writeScope) {
+                        writeScope = new ScopeNode(`page/${file.path}/${index}`);
+                        readScope.addChild(writeScope);
+                    }
+
+                    if (shouldReevaluate && !shouldForceCached) {
+                        // console.log('Resetting write scope');
+                        writeScope.reset();
+                    }
+
+                    if (el.cursorInside) {
+                        // We still want to create scope and all, but not render actual component
+                        return;
+                    }
+
                     const ctx = {
                         file,
                         mode: 'edit',
@@ -567,10 +608,15 @@ export class EmeraCodeProcessor {
                     readScope = writeScope;
                 });
 
-                return builder.finish();
+                console.log('New cache', cache);
+                return {
+                    decorations: builder.finish(),
+                    cache,
+                };
             },
-            provide(field: StateField<DecorationSet>) {
-                return EditorView.decorations.from(field);
+
+            provide(field: StateField<PluginState>) {
+                return EditorView.decorations.from(field, f => f.decorations);
             },
         });
     });

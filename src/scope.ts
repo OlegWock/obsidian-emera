@@ -22,6 +22,13 @@ export class ScopeNode {
         return this.scope[prop];
     }
 
+    getAll(): Record<string, any> {
+        return {
+            ...(this.parent ? this.parent.getAll() : {}),
+            ...this.scope,
+        }
+    }
+
     has(prop: string): boolean {
         if (Object.hasOwn(this.scope, prop)) return true;
         if (this.parent) return this.parent.has(prop);
@@ -89,6 +96,7 @@ export class ScopeNode {
         this.scope = new Proxy({}, {
             get: (target, prop: string, receiver) => {
                 if (Object.hasOwn(target, prop)) {
+                    console.log('Scope get', prop, 'value', Reflect.get(target, prop, receiver));
                     return Reflect.get(target, prop, receiver);
                 }
                 if (this.parent) {
