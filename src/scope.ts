@@ -199,8 +199,6 @@ export const getPageScope = (plugin: EmeraPlugin, file: TFile) => {
         plugin.app.metadataCache.on('changed', (changedFile, data) => {
             if (file.path === changedFile.path) {
                 const frontmatter = plugin.app.metadataCache.getFileCache(file)?.frontmatter;
-                // TODO: might want to compare old and new and don't re-render whole page in case 
-                // user is just editing body of the note. Should be cheaper at least
                 scope!.set('frontmatter', frontmatter);
                 scope!.set('file', file);
             }

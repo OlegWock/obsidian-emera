@@ -1,7 +1,3 @@
-* Optimizations for editor plugin
-    * Use single common root component instead of compiling JSX to anonymous default component every time to avoid re-rendering whole tree on every render.
-
-
 * Document what global and page scopes contain
 * Update docs about what modules we expose and what's inside context
 

@@ -15,10 +15,10 @@ import {
 import { MarkdownPostProcessorContext, TFile, MarkdownView } from 'obsidian';
 import { EmeraPlugin } from '../plugin';
 import { iife } from '../utils';
-import { emeraCurrentEditorStateField, findCurrentView, isCursorBetweenNodes } from './utils';
+import { emeraCurrentEditorStateField, findCurrentView, isCursorBetweenNodes, isCursorOnSameLineWithNode } from './utils';
 import { EMERA_INLINE_JS_PREFIX, EMERA_INLINE_JSX_PREFIX, EMERA_JS_LANG_NAME, EMERA_JSX_LANG_NAME } from '../consts';
 import { getPageScope, getScope, ScopeNode } from '../scope';
-import { compileJsxIntoComponent, importFromString, transpileCode } from '../bundler';
+import { compileJsxIntoFactory, importFromString, transpileCode } from '../bundler';
 import { renderComponent } from '../renderer';
 import { LoadingInline } from '../components/LoadingInline';
 import { Root } from 'react-dom/client';
@@ -26,6 +26,7 @@ import { ComponentType } from 'react';
 import { ErrorAlert } from '../components/ErrorBoundary';
 import { EmptyBlock } from '../components/EmptyBlock';
 import { JsBlockPlaceholder } from '../components/JsBlockPlaceholder';
+import { RootComponent } from 'src/components/RootComponent';
 
 
 type ProcessorContext = {
@@ -117,13 +118,14 @@ export class EmeraCodeProcessor {
 
             await this.plugin.componentsLoadedPromise;
 
-            const component = await compileJsxIntoComponent(code, ctx.readScope);
+            const factory = await compileJsxIntoFactory(code, ctx.readScope);
             await ctx.readScope.waitForUnblock();
             // console.log('Processing inline JSX', code);
             // console.log('Compiled into', component);
             // console.log('Using scope', ctx.readScope, { ...ctx.readScope.scope });
             renderComponent({
-                component,
+                component: RootComponent,
+                props: { factory },
                 container: reactRoot,
                 plugin: this.plugin,
                 context: {
@@ -140,7 +142,7 @@ export class EmeraCodeProcessor {
         ctx.writeScope.block();
         wrapper.classList.add('emera-block-js');
         const code = content;
-        renderComponent({
+        const root = renderComponent({
             component: JsBlockPlaceholder,
             container: wrapper,
             plugin: this.plugin,
@@ -149,17 +151,27 @@ export class EmeraCodeProcessor {
             },
         });
 
-        const transpiled = transpileCode(code, { scope: ctx.readScope });
-        const id = Math.round(Math.random() * 1000);
-        console.log(id, 'Waiting for scope to execute', transpiled);
         await ctx.readScope.waitForUnblock();
-        console.log(id, 'Scope unblocked');
-        const module = await importFromString(transpiled);
-        console.log(id, 'Exported members to be added to scope', { ...module });
-        ctx.writeScope.reset();
-        ctx.writeScope.setMany(module);
-        console.log(id, 'Unblocking write scope');
-        ctx.writeScope.unblock();
+        try {
+            const transpiled = transpileCode(code, { scope: ctx.readScope });
+            const module = await importFromString(transpiled);
+            ctx.writeScope.reset();
+            ctx.writeScope.setMany(module);
+        } catch (error) {
+            renderComponent({
+                component: ErrorAlert,
+                container: root,
+                props: {
+                    error,
+                },
+                plugin: this.plugin,
+                context: {
+                    file: ctx.file,
+                },
+            });
+        } finally {
+            ctx.writeScope.unblock();
+        }
     };
 
     processBlockJsx: ProcessFunction = async (wrapper: HTMLElement, content: string, ctx: ProcessorContext) => {
@@ -181,25 +193,35 @@ export class EmeraCodeProcessor {
                     });
                 }
 
-                let component: ComponentType<any>;
                 await this.plugin.componentsLoadedPromise;
                 await ctx.readScope.waitForUnblock();
 
                 if (ctx.shortcutComponent) {
-                    component = ctx.readScope.get(ctx.shortcutComponent);
+                    const component = ctx.readScope.get(ctx.shortcutComponent);
+                    container = renderComponent({
+                        component,
+                        container,
+                        plugin: this.plugin,
+                        children: ctx.shortcutComponent ? content : undefined,
+                        context: {
+                            file: ctx.file,
+                        },
+                    });
                 } else {
-                    component = await compileJsxIntoComponent(content, ctx.readScope);
+                    const factory = await compileJsxIntoFactory(content, ctx.readScope);
+                    container = renderComponent({
+                        component: RootComponent,
+                        props: { factory },
+                        container,
+                        plugin: this.plugin,
+                        children: ctx.shortcutComponent ? content : undefined,
+                        context: {
+                            file: ctx.file,
+                        },
+                    });
                 }
 
-                container = renderComponent({
-                    component,
-                    container,
-                    plugin: this.plugin,
-                    children: ctx.shortcutComponent ? content : undefined,
-                    context: {
-                        file: ctx.file,
-                    },
-                });
+
             } catch (err) {
                 console.error(err);
                 renderComponent({
@@ -398,9 +420,6 @@ export class EmeraCodeProcessor {
         };
     });
 
-    // TODO: currently, if user moves cursor to JS block, it will break any subsequent block that uses variables from 
-    // this block. We need to keep track if such block is edited and either render placeholder on subsequent blocks or 
-    // just use older values to render the components
     codemirrorStateField = iife(() => {
         const parent = this;
         type PluginState = {
@@ -477,7 +496,7 @@ export class EmeraCodeProcessor {
                                 startNode: node.node,
                                 endNode: node.node,
                                 content: nodeContent,
-                                cursorInside: isCursorBetweenNodes(state, node, node),
+                                cursorInside: isCursorOnSameLineWithNode(state, node, node),
                             });
                         }
 
@@ -593,6 +612,7 @@ export class EmeraCodeProcessor {
                         readScope,
                         writeScope,
                     } as const;
+                    // TODO: it will be good to re-use React roots so widgets will be able to preserve state between renders
                     const widget = iife(() => {
                         if (el.type === 'inline-js') return new parent.InlineJsWidget(renderKey, el.content, ctx);
                         if (el.type === 'inline-jsx') return new parent.InlineJsxWidget(renderKey, el.content, ctx);

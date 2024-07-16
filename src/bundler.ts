@@ -1,7 +1,7 @@
 import { rollup, type Plugin as RollupPlugin } from '@rollup/browser';
-import { normalizePath } from 'obsidian';
+import { normalizePath, Notice } from 'obsidian';
 import * as Babel from '@babel/standalone';
-import { ComponentType } from 'react';
+import { ComponentType, ReactNode } from 'react';
 import type { EmeraPlugin } from './plugin';
 import { EMERA_GET_SCOPE, EMERA_MODULES } from './consts';
 import { getScope, ScopeNode } from './scope';
@@ -408,11 +408,8 @@ export const importFromString = (code: string, ignoreCache = true) => {
     return import(encodedCode);
 };
 
-// TODO: actually, instead of using this function on whole code block, we instead need to
-// create wrapper component once and change what is rendered inside of it. This way,
-// root component will be stable which will allow React properly reconcile updates instead
-// of re-rendering whole tree
-export const compileJsxIntoComponent = async (jsx: string, scope?: ScopeNode): Promise<ComponentType<{}>> => {
+
+export const compileJsxIntoFactory = async (jsx: string, scope?: ScopeNode): Promise<() => ReactNode> => {
     const source = `export default () => {
         return (<>${jsx}</>);
     };`;
@@ -424,8 +421,8 @@ export const compileJsxIntoComponent = async (jsx: string, scope?: ScopeNode): P
     });
     // console.log('====== Compiled JSX code');
     // console.log(transpiled);
-    const { default: component } = await importFromString(transpiled);
-    return component;
+    const { default: factory } = await importFromString(transpiled);
+    return factory;
 };
 
 export const loadComponents = async (plugin: EmeraPlugin): Promise<Record<string, ComponentType<any>>> => {
@@ -444,11 +441,12 @@ export const loadComponents = async (plugin: EmeraPlugin): Promise<Record<string
         return {};
     }
 
-    // TODO: this might fail silently (with just error in console) if user tries, for example, importing unsupported file type
-    const bundledCode = await bundleFile(plugin, indexFile);
-
-    // TODO: and this might fail if user tries to import global module
-    // that isn't provided by Emera. We'll need to show some notice at least.
-    const registry = await importFromString(bundledCode);
-    return registry;
+    try {
+        const bundledCode = await bundleFile(plugin, indexFile);
+        const registry = await importFromString(bundledCode);
+        return registry;
+    } catch (err) {
+        new Notice("Error happened while loading components: " + err.toString());
+        return {};
+    }
 };
