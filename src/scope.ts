@@ -1,5 +1,5 @@
 import * as obsidian from 'obsidian';
-import { EMERA_ROOT_SCOPE } from "./consts";
+import { EMERA_MODULES, EMERA_ROOT_SCOPE } from "./consts";
 import type { EmeraPlugin } from "./plugin";
 import { TFile } from 'obsidian';
 import { safeCall } from './utils';
@@ -183,8 +183,8 @@ export const populateRootScope = (plugin: EmeraPlugin) => {
     const scope = getScope('root');
     scope.reset();
     scope.set('app', plugin.app);
-    scope.set('obsidian', obsidian);
-    scope.set('moment', obsidian.moment);
+    // scope.set('obsidian', obsidian);
+    scope.set('modules', (window as any)[EMERA_MODULES]);
 };
 
 export const getPageScope = (plugin: EmeraPlugin, file: TFile) => {

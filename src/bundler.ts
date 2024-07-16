@@ -425,7 +425,7 @@ export const compileJsxIntoFactory = async (jsx: string, scope?: ScopeNode): Pro
     return factory;
 };
 
-export const loadComponents = async (plugin: EmeraPlugin): Promise<Record<string, ComponentType<any>>> => {
+export const loadUserModule = async (plugin: EmeraPlugin): Promise<Record<string, any>> => {
     const extensions = ['js', 'jsx', 'ts', 'tsx'];
     let indexFile: string | null = null;
     for (const ext of extensions) {

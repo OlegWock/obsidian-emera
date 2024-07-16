@@ -85,4 +85,4 @@ export const emeraCurrentEditorStateField = StateField.define<null | EditorView>
         }
         return value
     }
-})
+});

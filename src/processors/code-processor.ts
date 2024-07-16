@@ -4,7 +4,7 @@ import {
     RangeSetBuilder,
     StateField,
     Transaction,
-    StateEffect,
+    EditorState,
 } from "@codemirror/state";
 import {
     Decoration,
@@ -22,7 +22,6 @@ import { compileJsxIntoFactory, importFromString, transpileCode } from '../bundl
 import { renderComponent } from '../renderer';
 import { LoadingInline } from '../components/LoadingInline';
 import { Root } from 'react-dom/client';
-import { ComponentType } from 'react';
 import { ErrorAlert } from '../components/ErrorBoundary';
 import { EmptyBlock } from '../components/EmptyBlock';
 import { JsBlockPlaceholder } from '../components/JsBlockPlaceholder';
@@ -67,8 +66,6 @@ type ToProcessPreviewRecord = {
 };
 
 type ProcessFunction = (wrapper: HTMLElement, content: string, ctx: ProcessorContext) => void;
-
-const redecorateTrigger = StateEffect.define<null>();
 
 export class EmeraCodeProcessor {
     public plugin: EmeraPlugin;
@@ -426,213 +423,237 @@ export class EmeraCodeProcessor {
             decorations: DecorationSet,
             cache: { type: string, content: string, key: string, cursorInside: boolean }[],
         };
-        return StateField.define<PluginState>({
-            create(state): PluginState {
-                return {
+
+        const processCodeblocks = ({ oldState, editorState, transaction }: {
+            oldState?: PluginState,
+            editorState?: EditorState,
+            transaction?: Transaction
+        }): PluginState => {
+            if (!oldState) {
+                oldState = {
                     decorations: Decoration.none,
                     cache: [],
                 };
-            },
-            update(oldState: PluginState, transaction: Transaction): PluginState {
-                // console.log('Transaction', transaction);
-                const builder = new RangeSetBuilder<Decoration>();
-                const state = transaction.state;
+            }
 
-                const manualRefresh = transaction.effects.some(effect => effect.is(redecorateTrigger));
-                const importantUpdate = manualRefresh || transaction.docChanged;
-                if (!importantUpdate && !transaction.selection) {
-                    return oldState;
-                }
+            const builder = new RangeSetBuilder<Decoration>();
+            const state = transaction?.state ?? editorState;
+            if (!state) return oldState;
 
-                const editor = state.field(emeraCurrentEditorStateField);
-                if (!editor) {
-                    console.log(`[EDITOR] Can't get editor view, skipping`);
-                    return {
-                        decorations: builder.finish(),
-                        cache: [],
-                    };
-                }
+            const editorChanged = iife(() => {
+                if (!transaction) return;
+                return transaction.state.field(emeraCurrentEditorStateField) !== transaction.startState.field(emeraCurrentEditorStateField);
+            });
 
-                const mdView = findCurrentView(parent.plugin, editor);
-                if (!mdView) {
-                    console.log(`[EDITOR] Can't find current view, skipping`);
-                    return {
-                        decorations: builder.finish(),
-                        cache: [],
-                    };
-                }
+            const importantUpdate = transaction ? transaction.docChanged : true;
+            const selectionChange = transaction ? transaction.selection : true;
+            if (!importantUpdate && !selectionChange && !editorChanged) {
+                return oldState;
+            }
 
-                const mdViewState = mdView.getState();
-                // Don't do anything in Source mode, we care only about LivePreview
-                if (mdViewState.mode === 'source' && mdViewState.source) {
-                    console.log(`[EDITOR] Editor in source mode, skipping`);
-                    return {
-                        decorations: builder.finish(),
-                        cache: [],
-                    };
-                }
+            const editor = state.field(emeraCurrentEditorStateField);
+            if (!editor) {
+                console.log(`[EDITOR] Can't get editor view, skipping`);
+                return {
+                    decorations: builder.finish(),
+                    cache: [],
+                };
+            }
 
-                const file = mdView?.file;
-                if (!file) {
-                    console.log(`[EDITOR] Couldn't find file, skipping`);
-                    return {
-                        decorations: builder.finish(),
-                        cache: [],
-                    };
-                }
+            const mdView = findCurrentView(parent.plugin, editor);
+            if (!mdView) {
+                console.log(`[EDITOR] Can't find current view, skipping`);
+                return {
+                    decorations: builder.finish(),
+                    cache: [],
+                };
+            }
 
-                let currentBlockStartNode: SyntaxNode | null = null;
-                let currentBlockStartType: 'block-js' | 'block-jsx' | null = null;
+            const mdViewState = mdView.getState();
+            // Don't do anything in Source mode, we care only about LivePreview
+            if (mdViewState.mode === 'source' && mdViewState.source) {
+                console.log(`[EDITOR] Editor in source mode, skipping`);
+                return {
+                    decorations: builder.finish(),
+                    cache: [],
+                };
+            }
 
-                const toProcess: ToProcessEditorRecord[] = [];
+            const file = mdView?.file;
+            if (!file) {
+                console.log(`[EDITOR] Couldn't find file, skipping`);
+                return {
+                    decorations: builder.finish(),
+                    cache: [],
+                };
+            }
 
-                syntaxTree(state).iterate({
-                    enter: (node) => {
-                        const nodeContent = state.doc.sliceString(node.from, node.to);
+            let currentBlockStartNode: SyntaxNode | null = null;
+            let currentBlockStartType: 'block-js' | 'block-jsx' | null = null;
 
-                        if (node.type.name.startsWith('inline-code') && (nodeContent.startsWith(EMERA_INLINE_JS_PREFIX) || nodeContent.startsWith(EMERA_INLINE_JSX_PREFIX))) {
+            const toProcess: ToProcessEditorRecord[] = [];
+
+            syntaxTree(state).iterate({
+                enter: (node) => {
+                    const nodeContent = state.doc.sliceString(node.from, node.to);
+
+                    if (node.type.name.startsWith('inline-code') && (nodeContent.startsWith(EMERA_INLINE_JS_PREFIX) || nodeContent.startsWith(EMERA_INLINE_JSX_PREFIX))) {
+                        toProcess.push({
+                            type: nodeContent.startsWith(EMERA_INLINE_JS_PREFIX) ? 'inline-js' : 'inline-jsx',
+                            startNode: node.node,
+                            endNode: node.node,
+                            content: nodeContent,
+                            cursorInside: isCursorOnSameLineWithNode(state, node, node),
+                        });
+                    }
+
+                    const isFenceStart = node.type.name.includes('HyperMD-codeblock-begin');
+                    const isFenceEnd = node.type.name.includes('HyperMD-codeblock-end');
+                    const containstEmeraSpecifier = nodeContent.trim().endsWith(EMERA_JSX_LANG_NAME) || nodeContent.trim().includes(`${EMERA_JSX_LANG_NAME}:`) || nodeContent.trim().endsWith(EMERA_JS_LANG_NAME);
+
+                    if (isFenceStart && containstEmeraSpecifier && !currentBlockStartNode) {
+                        currentBlockStartNode = node.node;
+                        currentBlockStartType = nodeContent.trim().endsWith(EMERA_JS_LANG_NAME) ? 'block-js' : 'block-jsx';
+                    } else if (isFenceEnd && currentBlockStartNode) {
+                        const text = state.doc.sliceString(currentBlockStartNode.from, node.to).trim();
+
+                        const regex = new RegExp(`([\`~]{3,})(?:${EMERA_JS_LANG_NAME}|${EMERA_JSX_LANG_NAME}:?(\\S+)?)\\n([\\s\\S]+)\\n\\1`);
+                        const match = regex.exec(text);
+
+                        if (match) {
+                            const componentSpecifier = match[2];
+                            const code = match[3]
+
                             toProcess.push({
-                                type: nodeContent.startsWith(EMERA_INLINE_JS_PREFIX) ? 'inline-js' : 'inline-jsx',
-                                startNode: node.node,
+                                type: currentBlockStartType!,
+                                startNode: currentBlockStartNode,
                                 endNode: node.node,
-                                content: nodeContent,
-                                cursorInside: isCursorOnSameLineWithNode(state, node, node),
+                                content: code,
+                                cursorInside: isCursorBetweenNodes(state, currentBlockStartNode, node),
+                                shortcutComponent: componentSpecifier ?? undefined,
                             });
                         }
 
-                        const isFenceStart = node.type.name.includes('HyperMD-codeblock-begin');
-                        const isFenceEnd = node.type.name.includes('HyperMD-codeblock-end');
-                        const containstEmeraSpecifier = nodeContent.trim().endsWith(EMERA_JSX_LANG_NAME) || nodeContent.trim().includes(`${EMERA_JSX_LANG_NAME}:`) || nodeContent.trim().endsWith(EMERA_JS_LANG_NAME);
-
-                        if (isFenceStart && containstEmeraSpecifier && !currentBlockStartNode) {
-                            currentBlockStartNode = node.node;
-                            currentBlockStartType = nodeContent.trim().endsWith(EMERA_JS_LANG_NAME) ? 'block-js' : 'block-jsx';
-                        } else if (isFenceEnd && currentBlockStartNode) {
-                            const text = state.doc.sliceString(currentBlockStartNode.from, node.to).trim();
-
-                            const regex = new RegExp(`([\`~]{3,})(?:${EMERA_JS_LANG_NAME}|${EMERA_JSX_LANG_NAME}:?(\\S+)?)\\n([\\s\\S]+)\\n\\1`);
-                            const match = regex.exec(text);
-
-                            if (match) {
-                                const componentSpecifier = match[2];
-                                const code = match[3]
-
-                                toProcess.push({
-                                    type: currentBlockStartType!,
-                                    startNode: currentBlockStartNode,
-                                    endNode: node.node,
-                                    content: code,
-                                    cursorInside: isCursorBetweenNodes(state, currentBlockStartNode, node),
-                                    shortcutComponent: componentSpecifier ?? undefined,
-                                });
-                            }
-
-                            currentBlockStartNode = null;
-                            currentBlockStartType = null;
-                        }
-                    },
-                });
-
-                if (toProcess.length === 0) {
-                    return {
-                        decorations: builder.finish(),
-                        cache: [],
-                    };
-                }
-
-                console.log('[EDITOR] Will process nodes', toProcess);
-                const pageScope = getPageScope(parent.plugin, file);
-                // console.log('[EDITOR] Disposing page scope descendants', pageScope.id);
-                // pageScope.disposeDescendants();
-
-                const cache: PluginState["cache"] = [];
-                let shouldForceCached = false;
-                let shouldReevaluate = false;
-                let readScope = pageScope;
-
-                console.log('Old cache', oldState.cache);
-                console.log('To Process', toProcess);
-                toProcess.forEach((el, index) => {
-                    const cacheEntry = oldState.cache[index];
-                    if (el.cursorInside) {
-                        shouldForceCached = true;
+                        currentBlockStartNode = null;
+                        currentBlockStartType = null;
                     }
-                    const renderKey = iife(() => {
-                        const randomKey = Math.random().toString();
-                        if (cacheEntry && cacheEntry.cursorInside && !el.cursorInside) {
-                            if (cacheEntry.type === 'block-js' || el.type === 'block-js') {
-                                shouldReevaluate = true;
-                            }
-                            return randomKey;
-                        };
-                        if (shouldForceCached) return cacheEntry?.key ?? randomKey;
-                        if (!cacheEntry || shouldReevaluate) return randomKey;
-                        if (cacheEntry.type === el.type && cacheEntry.content === el.content) return cacheEntry.key;
+                },
+            });
 
-                        if (cacheEntry.type === 'block-js' || el.type === 'block-js') {
-                            shouldReevaluate = true;
-                            return randomKey;
-                        }
-
-                        return randomKey;
-                    });
-
-                    console.log('Record', index, el.type, 'render key', renderKey, `(old key ${cacheEntry?.key})`);
-
-
-                    cache.push({
-                        type: el.type,
-                        content: el.content,
-                        key: renderKey,
-                        cursorInside: el.cursorInside,
-                    });
-
-                    let writeScope = getScope(`page/${file.path}/${index}`);
-                    if (!writeScope) {
-                        writeScope = new ScopeNode(`page/${file.path}/${index}`);
-                        readScope.addChild(writeScope);
-                    }
-
-                    if (shouldReevaluate && !shouldForceCached) {
-                        // console.log('Resetting write scope');
-                        writeScope.reset();
-                    }
-
-                    if (el.cursorInside) {
-                        // We still want to create scope and all, but not render actual component
-                        return;
-                    }
-
-                    const ctx = {
-                        file,
-                        mode: 'edit',
-                        index,
-                        total: toProcess.length,
-                        shortcutComponent: el.shortcutComponent,
-                        readScope,
-                        writeScope,
-                    } as const;
-                    // TODO: it will be good to re-use React roots so widgets will be able to preserve state between renders
-                    const widget = iife(() => {
-                        if (el.type === 'inline-js') return new parent.InlineJsWidget(renderKey, el.content, ctx);
-                        if (el.type === 'inline-jsx') return new parent.InlineJsxWidget(renderKey, el.content, ctx);
-                        if (el.type === 'block-js') return new parent.BlockJsWidget(renderKey, el.content, ctx);
-                        if (el.type === 'block-jsx') return new parent.BlockJsxWidget(renderKey, el.content, ctx);
-                    });
-                    const isInline = el.type.startsWith('inline');
-                    builder.add(
-                        isInline ? el.startNode.from : el.startNode.from - 1,
-                        isInline ? el.endNode.to : el.endNode.to + 1,
-                        Decoration.replace({ widget })
-                    );
-                    readScope = writeScope;
-                });
-
-                console.log('New cache', cache);
+            if (toProcess.length === 0) {
                 return {
                     decorations: builder.finish(),
-                    cache,
+                    cache: [],
                 };
+            }
+
+            console.log('[EDITOR] Will process nodes', toProcess);
+            const pageScope = getPageScope(parent.plugin, file);
+            // console.log('[EDITOR] Disposing page scope descendants', pageScope.id);
+            // pageScope.disposeDescendants();
+
+            const cache: PluginState["cache"] = [];
+            let shouldForceCached = false;
+            let shouldReevaluate = false;
+            let readScope = pageScope;
+
+            console.log('Old cache', oldState.cache);
+            console.log('To Process', toProcess);
+            toProcess.forEach((el, index) => {
+                const cacheEntry = oldState.cache[index];
+                if (el.cursorInside) {
+                    shouldForceCached = true;
+                }
+                const renderKey = iife(() => {
+                    const randomKey = Math.random().toString();
+                    if (cacheEntry && cacheEntry.cursorInside && !el.cursorInside) {
+                        if (cacheEntry.type === 'block-js' || el.type === 'block-js') {
+                            shouldReevaluate = true;
+                        }
+                        return randomKey;
+                    };
+                    if (shouldForceCached) return cacheEntry?.key ?? randomKey;
+                    if (!cacheEntry || shouldReevaluate) return randomKey;
+                    if (cacheEntry.type === el.type && cacheEntry.content === el.content) return cacheEntry.key;
+
+                    if (cacheEntry.type === 'block-js' || el.type === 'block-js') {
+                        shouldReevaluate = true;
+                        return randomKey;
+                    }
+
+                    return randomKey;
+                });
+
+                console.log('Record', index, el.type, 'render key', renderKey, `(old key ${cacheEntry?.key})`);
+
+
+                cache.push({
+                    type: el.type,
+                    content: el.content,
+                    key: renderKey,
+                    cursorInside: el.cursorInside,
+                });
+
+                let writeScope = getScope(`page/${file.path}/${index}`);
+                if (!writeScope) {
+                    writeScope = new ScopeNode(`page/${file.path}/${index}`);
+                    readScope.addChild(writeScope);
+                }
+
+                if (shouldReevaluate && !shouldForceCached) {
+                    // console.log('Resetting write scope');
+                    writeScope.reset();
+                }
+
+                if (el.cursorInside) {
+                    // We still want to create scope and all, but not render actual component
+                    return;
+                }
+
+                const ctx = {
+                    file,
+                    mode: 'edit',
+                    index,
+                    total: toProcess.length,
+                    shortcutComponent: el.shortcutComponent,
+                    readScope,
+                    writeScope,
+                } as const;
+                // TODO: it will be good to re-use React roots so widgets will be able to preserve state between renders
+                const widget = iife(() => {
+                    if (el.type === 'inline-js') return new parent.InlineJsWidget(renderKey, el.content, ctx);
+                    if (el.type === 'inline-jsx') return new parent.InlineJsxWidget(renderKey, el.content, ctx);
+                    if (el.type === 'block-js') return new parent.BlockJsWidget(renderKey, el.content, ctx);
+                    if (el.type === 'block-jsx') return new parent.BlockJsxWidget(renderKey, el.content, ctx);
+                });
+                const isInline = el.type.startsWith('inline');
+                builder.add(
+                    isInline ? el.startNode.from : el.startNode.from - 1,
+                    isInline ? el.endNode.to : el.endNode.to + 1,
+                    Decoration.replace({ widget })
+                );
+                readScope = writeScope;
+            });
+
+            console.log('New cache', cache);
+            return {
+                decorations: builder.finish(),
+                cache,
+            };
+        };
+
+        return StateField.define<PluginState>({
+            create(state): PluginState {
+                const initialState = processCodeblocks({ editorState: state });
+                console.log('Code processor initial state', initialState);
+                return initialState;
+            },
+
+            update(oldState: PluginState, transaction: Transaction): PluginState {
+                return processCodeblocks({
+                    oldState,
+                    transaction
+                });
             },
 
             provide(field: StateField<PluginState>) {

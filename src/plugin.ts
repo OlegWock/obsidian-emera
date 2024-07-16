@@ -1,8 +1,7 @@
 import { App, MarkdownView, Plugin, PluginManifest } from 'obsidian';
 import { SettingTab } from './settings';
-import { loadComponents } from './bundler';
+import { loadUserModule } from './bundler';
 import { EMERA_ROOT_SCOPE } from './consts';
-import { eventBus } from './events';
 import { createEmeraStorage, EmeraStorage } from './emera-module/storage';
 import { populateRootScope, ScopeNode } from './scope';
 import { emeraCurrentEditorProviderPlugin, emeraCurrentEditorStateField } from './processors/utils';
@@ -60,11 +59,10 @@ export class EmeraPlugin extends Plugin {
         this.app.workspace.onLayoutReady(async () => {
             this.isFilesLoaded = true;
             await this.storage.init();
-            const registry = await loadComponents(this);
+            const registry = await loadUserModule(this);
             this.rootScope.setMany(registry);
             this.isComponentsLoaded = true;
             this.resolveComponentsLoaded();
-            eventBus.emit('onComponentsLoaded');
             this.refreshEditors();
         });
     }
@@ -79,12 +77,9 @@ export class EmeraPlugin extends Plugin {
 
     }
 
-    refreshComponents = async () => {
-        const registry = await loadComponents(this);
+    refreshUserModule = async () => {
+        const registry = await loadUserModule(this);
         this.rootScope.setMany(registry);
-
-        console.log('Emitting onComponentsReloaded');
-        eventBus.emit('onComponentsReloaded');
         this.refreshEditors();
     }
 

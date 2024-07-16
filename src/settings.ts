@@ -25,13 +25,13 @@ export class SettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
         new Setting(containerEl)
-            .setName('Refresh components')
-            .setDesc('Click this if you made any changes to components after opening Obsidian')
+            .setName('Refresh user module')
+            .setDesc('Click this if you made any changes to any exported members after opening Obsidian')
             .addButton(button => button
                 .setButtonText('Refresh')
                 .onClick(async () => {
-                   await this.plugin.refreshComponents();
-                   new Notice('Emera components were reloaded.');
+                   await this.plugin.refreshUserModule();
+                   new Notice('User module was reloaded.');
                 })
             );
     }
