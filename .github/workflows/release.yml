@@ -34,11 +34,14 @@ jobs:
           echo "::set-output name=manifestJson::$content"
       - name: Build plugin
         run: yarn build
-
+      - name: 'Zip files'
+        uses: montudor/action-zip@v1
+        with:
+          args: "zip -qq -r emera-${{fromJson(steps.set_var.outputs.manifestJson).version}}.zip main.js manifest.json styles.css"
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: "${{fromJson(steps.set_var.outputs.manifestJson).version}}"
           generate_release_notes: false
           files: |
-            main.js manifest.json styles.css
+            *.zip
