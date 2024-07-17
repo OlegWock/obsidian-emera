@@ -317,6 +317,7 @@ export const transpileCode = (
     if (!transpiled) {
         throw new Error('Babel failed :(');
     }
+    // console.log('Original', code);
     // console.log(transpiled);
     return transpiled;
 };

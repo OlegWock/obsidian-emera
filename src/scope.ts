@@ -183,7 +183,6 @@ export const populateRootScope = (plugin: EmeraPlugin) => {
     const scope = getScope('root');
     scope.reset();
     scope.set('app', plugin.app);
-    // scope.set('obsidian', obsidian);
     scope.set('modules', (window as any)[EMERA_MODULES]);
 };
 

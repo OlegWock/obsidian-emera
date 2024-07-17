@@ -1,6 +1,6 @@
 # Emera for Obsidian
 
-This is a plugin for Obsidian (https://obsidian.md) which enables you to use react components and inline JavaScript directly in your notes.
+This is a plugin for Obsidian (https://obsidian.md) which enables you to use React components and inline JavaScript directly into your notes.
 
 ![Screenshot](/.github/screenshot.png)
 
@@ -12,6 +12,9 @@ This is a plugin for Obsidian (https://obsidian.md) which enables you to use rea
 * [Roadmap](#roadmap)
 * [How to install](#how-to-install)
 * [How to use](#how-to-use)
+    * [Components](#components)
+    * [Vanilla JavaScript](#vanilla-javascript)
+    * [Scope](#scope)
     * [Supported features](#supported-features)
     * [Limitations](#limitations)
     * [Available modules](#available-modules)
@@ -23,35 +26,30 @@ This is a plugin for Obsidian (https://obsidian.md) which enables you to use rea
 
 ## Features
 
-* Embed React components as blocks or inline with text.
-* Convenient shorthand syntax for markdown formatting components (think `<Callout />).
-* Full-fledged JSX for more complex usecases.
-* Inline JS execution (in progress).
-* Supports both reading and live preview modes.
-* Works on mobile.
-* Components are loaded from JS files, so you can use your favorite editor.
-* Emera supports TypeScript, ES modules (local only), and direct import of CSS files. 
 
-## Roadmap
+- [x] Embed React components as blocks or inline with text.
+- [x] Convenient shorthand syntax for markdown formatting components (like `<Callout />).
+- [x] Full-fledged JSX for more complex usecases.
+- [x] Inline JS evaluation.
+- [x] Code block can export variables accessible to components and other code blocks on the page.
+- [x] Supports both reading and live preview modes.
+- [x] Works on mobile.
+- [x] Components are loaded from JS files, so you can use your favorite editor.
+- [x] Emera supports TypeScript, ES modules (local only), and direct import of CSS files. 
 
-* Accessing frontmatter in components and inline js
-* Share variables between code blocks on same page. So you could do something like:
-````markdown
-```emjs
-export const two = 2;
-export const five = 5;
-```
-````
+## Roadmap / What's missing
 
-And later on same page `emjs:two+five` (wrapped in backticks) which will be evaluated to `7`.
-
-* Support for canvas
+- [ ] Support for canvas
+- [ ] Better TypeScript DX
+- [ ] Reactive hooks for Obsidian
 
 ## How to install
 
 Emera isn't available in Obsidian plugin catalog (at least yet). To install Emera you need to download zip file from latest release and unpack it into `<your vault>/.obisdian/plugins/emera` and enable it in Obsidian's settings.
 
 ## How to use
+
+### Components
 
 After you install and enable Emera, you can configure your components folder. By default it's `Components` folder in the root of your vault.
 
@@ -75,11 +73,11 @@ export const RedCallout = ({ children }) => {
 };
 ```
 
-Then go to Emera's settings and refresh components. Now you can use your `HelloWorld` and `HelloWorldInline` components in your notes. Components can be embedded either inline, or as a block.
+Then go to Emera's settings and refresh components. Now you can use your `HelloWorld`, `HelloWorldInline` and `RedCallout` components in your notes. Components can be embedded either inline, or as a block.
 
 To render component inline, add ```emera:<HelloWorldInline name="Obsidian" />```. Everything after `emera:` will be parsed as JSX, so you can set props, add children elements, etc.
 
-To render component as block, there are two syntaxes. Shorthand syntax is convenient if your component acts as a simple wrapper (e.g. `<Callout />` kind of component). You add it by creating codeblock with language ```Em<Name of your component>```
+To render component as block, there are two syntaxes. Shorthand syntax is convenient if your component acts as a simple wrapper (e.g. `<Callout />` kind of component). You add it by creating code block with language ```emera:<Name of your component>```
 
 ````markdown
 ```emera:RedCallout
@@ -87,7 +85,7 @@ You can use **Markdown** inside `<RedCallout />`.
 ```
 ````
 
-When using shorthand syntax, content of codeblock isn't parsed as JSX, but passed directly to the component as a string. This allows to preserve any formatting, and later correctly render it with `<Markdown />` component.
+When using shorthand syntax, content of code block isn't parsed as JSX, but passed directly to the component as a string. This allows to preserve any formatting, and later correctly render it in `<Markdown />` component.
 
 And for more complex cases there is support for JSX. JSX is automatically wrapped in Fragment, so you can add multiple siblings to same block.
 
@@ -98,7 +96,35 @@ And for more complex cases there is support for JSX. JSX is automatically wrappe
 ```
 ````
 
-JavaScript evaluation is still in development and fairly limited. Currently it's only possible to evaluate inline JS, like this: `emjs:new Date()` (wrapped in backticks). Inline JS evaluated in global scope, so you can access, for example, `window.app`, but code doesn't have access to any of your exported functions/components.
+### Vanilla JavaScript
+
+In addition to components, you can use vanilla JavaScript. JS code can be used either inline or as block. For JS code use language specifier `emjs` instead of `emera`.
+
+Inline JS will be evaluated and its result will replace original code element on page. For example, this snippet will output current vault name ```emjs: app.vault.getName()```.
+
+JS code blocks are more powerful. They don't output anything directly, but you can use them for more complex operations and to add variables to page's scope (more about scope a bit later).
+
+````markdown
+```emjs
+export const username = 'OlegWock';
+```
+````
+
+Variable `username` will be available to all JS and JSX code on this page (after original `emjs` code block).
+
+### Scope
+
+Emera executes code isolated from each other. This means that by default your code doesn't have access to variables defined in other code blocks. To work around this, Emera gives each code block its own reading scope. JavaScript blocks also receive writing scope where they put all that was `export`ed. And when Emera iterates over code blocks it links these scopes into a tree, so each code block has access to all variables defined in blocks before (and some global variables). If you'd like more details see [how it works](#how-it-works).
+
+Besides variables exported from code blocks, Emera put a couple of extras into page and root scope.
+
+Root scope:
+* `app` – plugin's app instance, see [docs](https://docs.obsidian.md/Reference/TypeScript+API/App)).
+* `modules` – external modules provided by Emera, see [available modules](#available-modules).
+
+Page scope:
+* `file` – `TFile` object for current page, see [docs](https://docs.obsidian.md/Reference/TypeScript+API/TFile)).
+* `frontmatter` – frontmatter object for current page.
 
 ### Supported features
 
@@ -121,7 +147,7 @@ I tried to make working with Emera as easy as possible, but there are still a fe
 
 * You can't use external modules
 
-Most notably, you can't use external modules (ones installed with NPM or imported directly by URL). If you're interested as to why, check out [How it works](#how-it-works) section. However, you can import local files, so if you download required library and place it in components folder – you can import it (as long as library itself doesn't import any other external library). Emera provides a couple of modules out of the box, see [Available modules](#available-modules).
+Most notably, you can't use external modules (ones installed with NPM or imported directly by URL). If you're interested as to why, check out [How it works](#how-it-works) section. However, you can import local files, so if you download required library and place it in components folder – you can import it (as long as library itself doesn't import any other external modules). Emera provides a couple of modules out of the box, see [Available modules](#available-modules).
 
 * You can't use built-in modules
 
@@ -153,21 +179,24 @@ Emera exposes couple of components, hooks, and functions which might be useful w
 
 ## How it works
 
-Emera works completely in browser environment, without access to Node. This was done to ensure that plguin can be compatible with Obsidian on mobile devices. However, this also places quite a lot of limitations.
+Emera works completely in browser environment, without access to Node. This was done to ensure that plguin can be compatible with Obsidian on mobile devices. However, this also adds quite a lot of limitations.
 
-When you launch Obsidian, Emera will try to transpile and bundle your plugins. This step allows you to use TypeScript, import CSS directly, and most importantly use JSX. To do so, we use special builds of [Rollup](https://rollupjs.org/faqs/#how-do-i-run-rollup-itself-in-a-browser) and [Babel](https://babeljs.io/docs/babel-standalone) which can work in browser environment. However, many Babel and Rollup plugins still require Node environment, so Emera also includes implementations of virtual filesystem, styles loader, and own intergration with Babel. 
+When you launch Obsidian, Emera will try to transpile and bundle your code (we call it user module). This step allows you to use TypeScript, import CSS directly, and most importantly use JSX. To do so, we use special builds of [Rollup](https://rollupjs.org/faqs/#how-do-i-run-rollup-itself-in-a-browser) and [Babel](https://babeljs.io/docs/babel-standalone) which can work in browser environment. However, many Babel and Rollup plugins still require Node environment, so Emera also includes implementations of virtual filesystem, styles loader, and own intergration with Babel. 
 
-Once code is bundled, Emera will execute it and save any exported functions and components into "global scope". Note that here scope means abstraction provided by Emera, and values actually stored in one ov properties of `window`. Similarly, modules provided by Emera are stored in global variable too. To make everything work together, Emera provides a couple of custom Babel plugins which overwrite `import` statement in your code to get modules from the global variable instead, as well as substitute any likely unknown identifiers in your code (which might be variables, functions, React components etc) with values from scope. Simplified, `<Hello />` becomes `<window._emeraGlobalScope.Hello />`).
+But code can't be just bundled and executed as is. At least, imports won't work. To fix this, Emera exposes all modules in `window._emeraModules` variable and provides a Babel plugin which rewrites imports from being `import { motion } from "framer-motion"` into `const { motion } = window._emeraModules["framer-motion"];`.
 
-With components loaded, Emera will register a couple of handlers to render them on pages. Namely
+Once code is bundled, Emera will execute it and save all exported functions and components into "global scope" and they'll become available for Emera and for any code blocks on page. Note that here scope means abstraction provided by Emera. Those scopes can be built into tree structure to allow child scopes access properties from parent scope.
 
-* [Code block post processor](https://docs.obsidian.md/Reference/TypeScript+API/MarkdownPreviewRenderer/createCodeBlockPostProcessor) to render block components in both reading and live preview mode.
-* [Editor extension](https://docs.obsidian.md/Plugins/Editor/Editor+extensions) to render inline JS and components in live preview mode.
-* [Markdown post processor](https://docs.obsidian.md/Reference/TypeScript+API/MarkdownPreviewRenderer/registerPostProcessor) to render inline JS and components in reading mode.
+When Emera finds JS or JSX block on page, it will transpile it. But this time, transpilation will include another plugin, which rewrites access to any unknown identifier into access to current scope. So `name.toUpperCase()` becomes `(window._emeraGetScope("<scopeId>").has("name") ? window._emeraGetScope("<scopeId>").get("name") : name).toUpperCase()`. This looks monstrous, but fortunately it's only for machines and not for humans to read.
+
+After that, transpiled code will be executed. Depending on type of block, Emera will either render React component in place, output result of inline JS evaluation, or put exported variables into scope and render placeholder for JS blocks. 
+
+To process iterate over code blocks, Emera uses [editor extension](https://docs.obsidian.md/Plugins/Editor/Editor+extensions) and [Markdown post processor](https://docs.obsidian.md/Reference/TypeScript+API/MarkdownPreviewRenderer/registerPostProcessor) to render inline JS and components in reading mode.
+
 
 ## Reporting bugs, proposing features, and other contributions
 
-This is a project I do for myself and mostly because it's just fun, I love programming. I'm making this public and open-source in case there are people who might find it useful. I definetely would like to find something like this, so I wouldn't need to do most things from scratch. So, here it is, use as you please.
+This is a project I do for myself and mostly because it's just fun, I love programming. I'm making this public and open-source in case there are people who might find it useful. I definetely would like to find something like this earlier, so I wouldn't need to do most things from scratch. So, here it is, use as you please.
 
 _I, in fact, found [obsidian-react-components](https://github.com/elias-sundqvist/obsidian-react-components/) which helped me to understand how such kind of plugin would work, as I'm still relatively new to Obsidian._
 
