@@ -1,6 +1,6 @@
 # Emera for Obsidian
 
-This is a plugin for Obsidian (https://obsidian.md) which enables you to use React components and inline JavaScript directly into your notes.
+This is a plugin for [Obsidian](https://obsidian.md) which enables you to use React components and inline JavaScript directly into your notes. Kinda like MDX.
 
 ![Screenshot](/.github/screenshot.png)
 
@@ -39,9 +39,9 @@ This is a plugin for Obsidian (https://obsidian.md) which enables you to use Rea
 
 ## Roadmap / What's missing
 
-- [ ] Support for canvas
-- [ ] Better TypeScript DX
-- [ ] Reactive hooks for Obsidian
+- [ ] Support for canvas.
+- [ ] Better TypeScript DX.
+- [ ] Reactive hooks for Obsidian.
 
 ## How to install
 
