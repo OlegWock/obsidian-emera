@@ -354,6 +354,7 @@ export class EmeraCodeProcessor {
             }
 
             const file = this.plugin.app.vault.getFileByPath(ctx.sourcePath)!;
+            if (!file) return;
             const code = Array.from(el.querySelectorAll('code'));
             const toProcess = code.flatMap((el): ToProcessPreviewRecord[] => {
                 const content = el.textContent ?? '';
