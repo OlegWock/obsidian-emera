@@ -96,7 +96,6 @@ export class ScopeNode {
         this.scope = new Proxy({}, {
             get: (target, prop: string, receiver) => {
                 if (Object.hasOwn(target, prop)) {
-                    console.log('Scope get', prop, 'value', Reflect.get(target, prop, receiver));
                     return Reflect.get(target, prop, receiver);
                 }
                 if (this.parent) {

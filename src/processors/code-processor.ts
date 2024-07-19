@@ -297,17 +297,7 @@ export class EmeraCodeProcessor {
                 pageScope.disposeDescendants();
 
                 let readScope = pageScope;
-                queue.filter(el => {
-                    let isRenderingPage = false;
-                    this.plugin.app.workspace.iterateAllLeaves((leaf) => {
-                        // @ts-ignore
-                        if (leaf.view && leaf.view instanceof MarkdownView) {
-                            if (leaf.view.contentEl.contains(el.el)) isRenderingPage = true;
-                        }
-                    });
-
-                    return isRenderingPage;
-                }).forEach((el, index, arr) => {
+                queue.forEach((el, index, arr) => {
                     let writeScope = getScope(`page/${file.path}/${index}`);
                     if (writeScope) {
                         writeScope.dispose();
@@ -443,7 +433,7 @@ export class EmeraCodeProcessor {
 
             const editorChanged = iife(() => {
                 if (!transaction) return;
-                return transaction.state.field(emeraCurrentEditorStateField) !== transaction.startState.field(emeraCurrentEditorStateField);
+                return transaction.state.field(emeraCurrentEditorStateField, false) !== transaction.startState.field(emeraCurrentEditorStateField, false);
             });
 
             const importantUpdate = transaction ? transaction.docChanged : true;
