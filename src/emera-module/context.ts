@@ -4,7 +4,7 @@ import { createStrictContext } from "./utils";
 import type { EmeraStorage } from "./storage";
 
 export type EmeraContextType = {
-    file: TFile,
+    file: TFile | null,
     frontmatter: Record<string, any> | null | undefined,
     plugin: EmeraPlugin,
     storage: EmeraStorage,

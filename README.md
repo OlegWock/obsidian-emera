@@ -33,13 +33,13 @@ This is a plugin for [Obsidian](https://obsidian.md) which enables you to use Re
 - [x] Inline JS evaluation.
 - [x] Code block can export variables accessible to components and other code blocks on the page.
 - [x] Supports both reading and live preview modes.
+- [x] Works in canvas blocks.
 - [x] Works on mobile.
 - [x] Components are loaded from JS files, so you can use your favorite editor.
 - [x] Emera supports TypeScript, ES modules (local only), and direct import of CSS files. 
 
 ## Roadmap / What's missing
 
-- [ ] Support for canvas.
 - [ ] Better TypeScript DX.
 - [ ] Reactive hooks for Obsidian.
 
@@ -123,7 +123,7 @@ Root scope:
 * `modules` – external modules provided by Emera, see [available modules](#available-modules).
 
 Page scope:
-* `file` – `TFile` object for current page, see [docs](https://docs.obsidian.md/Reference/TypeScript+API/TFile)).
+* `file` – `TFile` object for current page if rended in page, otherwise null (e.g. for blocks in canvas). See [docs](https://docs.obsidian.md/Reference/TypeScript+API/TFile)).
 * `frontmatter` – frontmatter object for current page.
 
 ### Supported features

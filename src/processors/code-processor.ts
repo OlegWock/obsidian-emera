@@ -17,7 +17,7 @@ import { EmeraPlugin } from '../plugin';
 import { iife } from '../utils';
 import { emeraCurrentEditorStateField, findCurrentView, isCursorBetweenNodes, isCursorOnSameLineWithNode } from './utils';
 import { EMERA_INLINE_JS_PREFIX, EMERA_INLINE_JSX_PREFIX, EMERA_JS_LANG_NAME, EMERA_JSX_LANG_NAME } from '../consts';
-import { getPageScope, getScope, ScopeNode } from '../scope';
+import { getAnonymousDocScope, getPageScope, getScope, ScopeNode } from '../scope';
 import { compileJsxIntoFactory, importFromString, transpileCode } from '../bundler';
 import { renderComponent } from '../renderer';
 import { LoadingInline } from '../components/LoadingInline';
@@ -29,7 +29,7 @@ import { RootComponent } from 'src/components/RootComponent';
 
 
 type ProcessorContext = {
-    file: TFile,
+    file: TFile | null,
     index: number,
     total: number,
     readScope: ScopeNode,
@@ -267,6 +267,9 @@ export class EmeraCodeProcessor {
             toDOM(view: EditorView): HTMLElement {
                 const wrapper = document.createElement(inline ? 'span' : 'div');
                 wrapper.addEventListener('click', (e) => {
+                    e.stopImmediatePropagation();
+                });
+                wrapper.addEventListener('dblclick', (e) => {
                     e.preventDefault();
                     view.dispatch({
                         selection: { anchor: view.posAtDOM(wrapper) },
@@ -291,18 +294,19 @@ export class EmeraCodeProcessor {
 
             Object.entries(queueMap).forEach(async ([key, { file, queue }]) => {
                 console.log('[PREVIEW] Will process elements', queue);
-                const pageScope = getPageScope(this.plugin, file);
-                await pageScope.waitForUnblock();
+                const startScope = file ? getPageScope(this.plugin, file) : getAnonymousDocScope(this.plugin, key);
+                await startScope.waitForUnblock();
                 console.log('[PREVIEW] Disposing page scope descendants');
-                pageScope.disposeDescendants();
+                startScope.disposeDescendants();
 
-                let readScope = pageScope;
+                let readScope = startScope;
                 queue.forEach((el, index, arr) => {
-                    let writeScope = getScope(`page/${file.path}/${index}`);
+                    const writeScopeId = file ? `page/${file.path}/${index}` : `anon-doc/${key}/${index}`;
+                    let writeScope = getScope(writeScopeId);
                     if (writeScope) {
                         writeScope.dispose();
                     }
-                    writeScope = new ScopeNode(`page/${file.path}/${index}`);
+                    writeScope = new ScopeNode(writeScopeId);
                     readScope.addChild(writeScope);
                     const processorCtx = {
                         file,
@@ -331,7 +335,7 @@ export class EmeraCodeProcessor {
         };
 
         const queueMap: Record<string, {
-            file: TFile,
+            file: TFile | null,
             queue: ToProcessPreviewRecord[],
         }> = {};
 
@@ -343,8 +347,9 @@ export class EmeraCodeProcessor {
                 return;
             }
 
-            const file = this.plugin.app.vault.getFileByPath(ctx.sourcePath)!;
-            if (!file) return;
+            console.log('MD post', el, ctx);
+
+            const file = ctx.sourcePath ? this.plugin.app.vault.getFileByPath(ctx.sourcePath) : null;
             const code = Array.from(el.querySelectorAll('code'));
             const toProcess = code.flatMap((el): ToProcessPreviewRecord[] => {
                 const content = el.textContent ?? '';
@@ -393,13 +398,13 @@ export class EmeraCodeProcessor {
                 }
             });
 
-            if (!queueMap[file.path]) {
-                queueMap[file.path] = {
+            if (!queueMap[ctx.docId]) {
+                queueMap[ctx.docId] = {
                     file,
                     queue: [],
                 };
             }
-            queueMap[file.path].queue.push(...toProcess);
+            queueMap[ctx.docId].queue.push(...toProcess);
             if (!processingRequested) {
                 setTimeout(() => processQueue(), 10);
                 processingRequested = true;

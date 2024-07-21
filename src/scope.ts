@@ -206,3 +206,14 @@ export const getPageScope = (plugin: EmeraPlugin, file: TFile) => {
     }
     return scope;
 }
+
+export const getAnonymousDocScope = (plugin: EmeraPlugin, docId: string) => {
+    const id = `anon-doc/${docId}`;
+    let scope = getScope(id);
+    if (!scope) {
+        scope = new ScopeNode(id);
+    
+        getScope('root').addChild(scope);
+    }
+    return scope;
+}

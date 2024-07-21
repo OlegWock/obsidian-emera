@@ -22,7 +22,7 @@ export const renderComponent = <P extends Record<string, any>>({ component, cont
         root = container;
     }
 
-    const frontmatter = plugin.app.metadataCache.getFileCache(context.file)?.frontmatter;
+    const frontmatter = context.file ? plugin.app.metadataCache.getFileCache(context.file)?.frontmatter : undefined;
     root.render(
         createElement(EmeraContextProvider, {
             value: {
