@@ -14,7 +14,7 @@ export const Markdown = ({ children, ref, as: Component = 'div', ...props }: { c
             ctx.plugin.app,
             children,
             containerRef.current,
-            ctx.file.path,
+            ctx.file?.path ?? '',
             ctx.plugin,
         );
     }, []);
