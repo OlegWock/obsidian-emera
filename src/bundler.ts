@@ -1,7 +1,7 @@
 import { rollup, type Plugin as RollupPlugin } from '@rollup/browser';
 import { normalizePath, Notice } from 'obsidian';
 import * as Babel from '@babel/standalone';
-import { ComponentType, ReactNode } from 'react';
+import { ReactNode } from 'react';
 import type { EmeraPlugin } from './plugin';
 import { EMERA_GET_SCOPE, EMERA_MODULES } from './consts';
 import { getScope, ScopeNode } from './scope';
