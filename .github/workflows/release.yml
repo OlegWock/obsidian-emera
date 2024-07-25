@@ -45,3 +45,6 @@ jobs:
           generate_release_notes: false
           files: |
             *.zip
+            manifest.json
+            main.js
+            styles.css
