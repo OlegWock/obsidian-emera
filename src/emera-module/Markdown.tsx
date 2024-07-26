@@ -9,7 +9,7 @@ export const Markdown = ({ children, ref, as: Component = 'div', ...props }: { c
 
     useEffect(() => {
         if (!containerRef.current) return;
-        containerRef.current.innerHTML = '';
+        containerRef.current.replaceChildren();
         MarkdownRenderer.render(
             ctx.plugin.app,
             children,
