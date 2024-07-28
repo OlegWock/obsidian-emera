@@ -266,17 +266,16 @@ export class EmeraCodeProcessor {
 
             toDOM(view: EditorView): HTMLElement {
                 const wrapper = document.createElement(inline ? 'span' : 'div');
+                const reactRootWrapper = document.createElement(inline ? 'span' : 'div');
+                wrapper.appendChild(reactRootWrapper);
                 wrapper.addEventListener('click', (e) => {
-                    e.stopImmediatePropagation();
-                });
-                wrapper.addEventListener('dblclick', (e) => {
                     e.preventDefault();
                     view.dispatch({
                         selection: { anchor: view.posAtDOM(wrapper) },
                         scrollIntoView: true
                     });
                 });
-                func(wrapper, this.content, this.ctx);
+                func(reactRootWrapper, this.content, this.ctx);
                 return wrapper;
             }
         }

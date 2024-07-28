@@ -96,13 +96,21 @@ And for more complex cases there is support for JSX. JSX is automatically wrappe
 ```
 ````
 
+If your component is interactive (e.g. react to user clicks), in Live Preview mode clicking on such component will switch it in editing mode. If this behavior isn't desired, wrap your component in another element and stop propagation of click events.
+
+```jsx
+<div onClick={e => e.stopPropagation()}>
+    {/* Your component markup goes here... */}
+</div>
+```
+
 ### Vanilla JavaScript
 
 In addition to components, you can use vanilla JavaScript. JS code can be used either inline or as block. For JS code use language specifier `emjs` instead of `emera`.
 
 Inline JS will be evaluated and its result will replace original code element on page. For example, this snippet will output current vault name ```emjs: app.vault.getName()```.
 
-JS code blocks are more powerful. They don't output anything directly, but you can use them for more complex operations and to add variables to page's scope (more about scope a bit later).
+JS code blocks are more powerful. They don't output anything directly, but you can use them for more complex operations and to add variables to page's scope (more about scopes a bit later).
 
 ````markdown
 ```emjs
@@ -110,7 +118,7 @@ export const username = 'OlegWock';
 ```
 ````
 
-Variable `username` will be available to all JS and JSX code on this page (after original `emjs` code block).
+Variable `username` will be available to all JS and JSX code on this page (after the original `emjs` code block).
 
 ### Scope
 
