@@ -55,6 +55,8 @@ export class EmeraPlugin extends Plugin {
             this.codeProcessor.codemirrorStateField,
         ]);
 
+        // TODO: when file is renamed, we should prompt user to change its references in any Emera code block
+
 
         this.app.workspace.onLayoutReady(async () => {
             this.isFilesLoaded = true;

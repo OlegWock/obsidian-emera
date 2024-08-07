@@ -1,7 +1,7 @@
 {
 	"id": "emera",
 	"name": "Emera",
-	"version": "1.2.3",
+	"version": "1.3.0",
 	"minAppVersion": "1.6.5",
 	"description": "Enables you to use custom React components and inline JavaScript, kinda like MDX.",
 	"author": "OlegWock",

@@ -36,7 +36,7 @@ This is a plugin for [Obsidian](https://obsidian.md) which enables you to use Re
 - [x] Works in canvas blocks.
 - [x] Works on mobile.
 - [x] Components are loaded from JS files, so you can use your favorite editor.
-- [x] Emera supports TypeScript, ES modules (local only), and direct import of CSS files. 
+- [x] Emera supports TypeScript, ES modules (local and remote), and direct import of CSS files. 
 
 ## Roadmap / What's missing
 
@@ -127,11 +127,11 @@ Emera executes code isolated from each other. This means that by default your co
 Besides variables exported from code blocks, Emera put a couple of extras into page and root scope.
 
 Root scope:
-* `app` – plugin's app instance, see [docs](https://docs.obsidian.md/Reference/TypeScript+API/App)).
+* `app` – plugin's app instance, see [docs](https://docs.obsidian.md/Reference/TypeScript+API/App).
 * `modules` – external modules provided by Emera, see [available modules](#available-modules).
 
 Page scope:
-* `file` – `TFile` object for current page if rended in page, otherwise null (e.g. for blocks in canvas). See [docs](https://docs.obsidian.md/Reference/TypeScript+API/TFile)).
+* `file` – `TFile | null` object for current page if rended in page, otherwise null (e.g. for blocks in canvas). See [docs](https://docs.obsidian.md/Reference/TypeScript+API/TFile).
 * `frontmatter` – frontmatter object for current page.
 
 ### Supported features
@@ -155,7 +155,7 @@ I tried to make working with Emera as easy as possible, but there are still a fe
 
 * You can't use external modules
 
-Most notably, you can't use external modules (ones installed with NPM or imported directly by URL). If you're interested as to why, check out [How it works](#how-it-works) section. However, you can import local files, so if you download required library and place it in components folder – you can import it (as long as library itself doesn't import any other external modules). Emera provides a couple of modules out of the box, see [Available modules](#available-modules).
+Most notably, you can't use external modules installed with NPM. If you're interested as to why, check out [How it works](#how-it-works) section. However, you can import from ESM CDN like [esm.sh](https://esm.sh/). Or alternatively, you can download required library, place it in components folder and import as usual (as long as library itself doesn't import any other external modules). Emera provides a couple of modules out of the box, see [Available modules](#available-modules).
 
 * You can't use built-in modules
 

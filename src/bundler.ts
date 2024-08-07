@@ -36,7 +36,8 @@ function importRewriter() {
             ImportDeclaration(path: any) {
                 const source = path.node.source.value;
 
-                if (!source.startsWith('.') && !source.startsWith('/')) {
+                const ignoredPrefixes = ['.', 'http://', 'https://'];
+                if (!ignoredPrefixes.some(p => source.startsWith(p))) {
                     const specifiers = path.node.specifiers;
 
                     const properties = specifiers.map((specifier: any) => {
