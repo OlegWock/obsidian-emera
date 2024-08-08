@@ -77,10 +77,10 @@ Then go to Emera's settings and refresh components. Now you can use your `HelloW
 
 To render component inline, add ```emera:<HelloWorldInline name="Obsidian" />```. Everything after `emera:` will be parsed as JSX, so you can set props, add children elements, etc.
 
-To render component as block, there are two syntaxes. Shorthand syntax is convenient if your component acts as a simple wrapper (e.g. `<Callout />` kind of component). You add it by creating code block with language ```emera:<Name of your component>```
+To render component as block, there are two syntaxes. Shorthand syntax is convenient if your component acts as a simple wrapper (e.g. `<Callout />` kind of component). You add it by creating code block with language ```emmd:<Name of your component>```
 
 ````markdown
-```emera:RedCallout
+```emmd:RedCallout
 You can use **Markdown** inside `<RedCallout />`.
 ```
 ````

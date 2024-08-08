@@ -16,7 +16,7 @@ import { MarkdownPostProcessorContext, TFile, MarkdownView } from 'obsidian';
 import { EmeraPlugin } from '../plugin';
 import { iife } from '../utils';
 import { emeraCurrentEditorStateField, findCurrentView, isCursorBetweenNodes, isCursorOnSameLineWithNode } from './utils';
-import { EMERA_INLINE_JS_PREFIX, EMERA_INLINE_JSX_PREFIX, EMERA_JS_LANG_NAME, EMERA_JSX_LANG_NAME } from '../consts';
+import { EMERA_INLINE_JS_PREFIX, EMERA_INLINE_JSX_PREFIX, EMERA_JS_LANG_NAME, EMERA_JSX_LANG_NAME, EMERA_JSX_SHORTHAND_LANG_NAME } from '../consts';
 import { getAnonymousDocScope, getPageScope, getScope, ScopeNode } from '../scope';
 import { compileJsxIntoFactory, importFromString, transpileCode } from '../bundler';
 import { renderComponent } from '../renderer';
@@ -346,7 +346,7 @@ export class EmeraCodeProcessor {
                 return;
             }
 
-            console.log('MD post', el, ctx);
+            // console.log('MD post', el, ctx);
 
             const file = ctx.sourcePath ? this.plugin.app.vault.getFileByPath(ctx.sourcePath) : null;
             const code = Array.from(el.querySelectorAll('code'));
@@ -354,10 +354,12 @@ export class EmeraCodeProcessor {
                 const content = el.textContent ?? '';
                 if (el.parentElement?.tagName.toLowerCase() === 'pre') {
                     // Multi-line code block
-                    if (el.className.includes(`language-${EMERA_JSX_LANG_NAME}`)) {
-                        const regex = new RegExp(`language-${EMERA_JSX_LANG_NAME}:([\\S]+)`);
+                    console.log('Process el', el.className);
+                    if (el.className.includes(`language-${EMERA_JSX_LANG_NAME}`) || el.className.includes(`language-${EMERA_JSX_SHORTHAND_LANG_NAME}`)) {
+                        const regex = new RegExp(`language-(?:${EMERA_JSX_LANG_NAME}|${EMERA_JSX_SHORTHAND_LANG_NAME}):([\\S]+)`);
                         const match = regex.exec(el.className);
                         const componentSpecifier = match?.[1];
+                        console.log('Process el', el.className, 'match', match);
                         return [{
                             type: 'block-jsx',
                             el,
@@ -504,7 +506,7 @@ export class EmeraCodeProcessor {
 
                     const isFenceStart = node.type.name.includes('HyperMD-codeblock-begin');
                     const isFenceEnd = node.type.name.includes('HyperMD-codeblock-end');
-                    const containstEmeraSpecifier = nodeContent.trim().endsWith(EMERA_JSX_LANG_NAME) || nodeContent.trim().includes(`${EMERA_JSX_LANG_NAME}:`) || nodeContent.trim().endsWith(EMERA_JS_LANG_NAME);
+                    const containstEmeraSpecifier = nodeContent.trim().endsWith(EMERA_JSX_LANG_NAME) || nodeContent.trim().includes(`${EMERA_JSX_SHORTHAND_LANG_NAME}:`) || nodeContent.trim().endsWith(EMERA_JS_LANG_NAME);
 
                     if (isFenceStart && containstEmeraSpecifier && !currentBlockStartNode) {
                         currentBlockStartNode = node.node;
@@ -512,7 +514,7 @@ export class EmeraCodeProcessor {
                     } else if (isFenceEnd && currentBlockStartNode) {
                         const text = state.doc.sliceString(currentBlockStartNode.from, node.to).trim();
 
-                        const regex = new RegExp(`([\`~]{3,})(?:${EMERA_JS_LANG_NAME}|${EMERA_JSX_LANG_NAME}:?(\\S+)?)\\n([\\s\\S]+)\\n\\1`);
+                        const regex = new RegExp(`([\`~]{3,})(?:${EMERA_JS_LANG_NAME}|(?:${EMERA_JSX_LANG_NAME}|${EMERA_JSX_SHORTHAND_LANG_NAME}):?(\\S+)?)\\n([\\s\\S]+)\\n\\1`);
                         const match = regex.exec(text);
 
                         if (match) {

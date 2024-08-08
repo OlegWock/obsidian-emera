@@ -1,4 +1,4 @@
-import { EMERA_GET_SCOPE, EMERA_JS_LANG_NAME, EMERA_JSX_LANG_NAME, EMERA_MODULES, EMERA_ROOT_SCOPE } from "./consts";
+import { EMERA_GET_SCOPE, EMERA_JS_LANG_NAME, EMERA_JSX_LANG_NAME, EMERA_JSX_SHORTHAND_LANG_NAME, EMERA_MODULES, EMERA_ROOT_SCOPE } from "./consts";
 import { registerCodemirrorMode } from './utils';
 import { exposedModules } from "./exposed-modules";
 import { getScope, ScopeNode } from './scope';
@@ -6,6 +6,7 @@ import { getScope, ScopeNode } from './scope';
 // Add syntax highlight for emera
 registerCodemirrorMode(EMERA_JSX_LANG_NAME, 'jsx');
 registerCodemirrorMode(EMERA_JS_LANG_NAME, 'javascript');
+registerCodemirrorMode(EMERA_JSX_SHORTHAND_LANG_NAME, 'markdown');
 
 // Expose modules
 (window as any)[EMERA_MODULES] = new Proxy({
