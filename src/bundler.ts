@@ -442,6 +442,7 @@ export const loadUserModule = async (plugin: EmeraPlugin): Promise<Record<string
         console.log('Index file not found');
         return {};
     }
+    console.log('Loading index file', indexFile);
 
     try {
         const bundledCode = await bundleFile(plugin, indexFile);

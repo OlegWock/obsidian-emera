@@ -4,7 +4,6 @@ import { loadUserModule } from './bundler';
 import { EMERA_ROOT_SCOPE } from './consts';
 import { createEmeraStorage, EmeraStorage } from './emera-module/storage';
 import { populateRootScope, ScopeNode } from './scope';
-import { emeraCurrentEditorProviderPlugin, emeraCurrentEditorStateField } from './processors/utils';
 import { EmeraCodeProcessor } from './processors/code-processor';
 
 interface PluginSettings {
@@ -50,8 +49,6 @@ export class EmeraPlugin extends Plugin {
         this.registerMarkdownPostProcessor(this.codeProcessor.markdownPostProcessor);
 
         this.registerEditorExtension([
-            emeraCurrentEditorProviderPlugin,
-            emeraCurrentEditorStateField,
             this.codeProcessor.codemirrorStateField,
         ]);
 

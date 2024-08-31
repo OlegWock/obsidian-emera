@@ -1,5 +1,6 @@
 import type { SyntaxNode } from '@lezer/common';
-import { syntaxTree } from "@codemirror/language";
+// @ts-ignore
+import { syntaxTree, tokenClassNodeProp, lineClassNodeProp } from "@codemirror/language";
 import {
     RangeSetBuilder,
     StateField,
@@ -12,10 +13,10 @@ import {
     EditorView,
     WidgetType,
 } from "@codemirror/view";
-import { MarkdownPostProcessorContext, TFile, MarkdownView } from 'obsidian';
+import { MarkdownPostProcessorContext, TFile, MarkdownView, editorInfoField, editorEditorField, editorLivePreviewField } from 'obsidian';
 import { EmeraPlugin } from '../plugin';
 import { iife } from '../utils';
-import { emeraCurrentEditorStateField, findCurrentView, isCursorBetweenNodes, isCursorOnSameLineWithNode } from './utils';
+import { isCursorBetweenNodes, isCursorOnSameLineWithNode } from './utils';
 import { EMERA_INLINE_JS_PREFIX, EMERA_INLINE_JSX_PREFIX, EMERA_JS_LANG_NAME, EMERA_JSX_LANG_NAME, EMERA_JSX_SHORTHAND_LANG_NAME } from '../consts';
 import { getAnonymousDocScope, getPageScope, getScope, ScopeNode } from '../scope';
 import { compileJsxIntoFactory, importFromString, transpileCode } from '../bundler';
@@ -437,18 +438,13 @@ export class EmeraCodeProcessor {
             const state = transaction?.state ?? editorState;
             if (!state) return oldState;
 
-            const editorChanged = iife(() => {
-                if (!transaction) return;
-                return transaction.state.field(emeraCurrentEditorStateField, false) !== transaction.startState.field(emeraCurrentEditorStateField, false);
-            });
-
             const importantUpdate = transaction ? transaction.docChanged : true;
             const selectionChange = transaction ? transaction.selection : true;
-            if (!importantUpdate && !selectionChange && !editorChanged) {
+            if (!importantUpdate && !selectionChange) {
                 return oldState;
             }
 
-            const editor = state.field(emeraCurrentEditorStateField);
+            const editor = state.field(editorEditorField);
             if (!editor) {
                 console.log(`[EDITOR] Can't get editor view, skipping`);
                 return {
@@ -457,7 +453,11 @@ export class EmeraCodeProcessor {
                 };
             }
 
-            const mdView = findCurrentView(parent.plugin, editor);
+
+            // Kind of hacky, officially editorInfoField contains MarkdownFileInfo, which is limited
+            // subset of MarkdownView, but in fact this state field contains full MarkdownView
+            const mdView = state.field(editorInfoField) as MarkdownView | null;
+            console.log('[EDITOR] Current view', mdView);
             if (!mdView) {
                 console.log(`[EDITOR] Can't find current view, skipping`);
                 return {
@@ -466,9 +466,9 @@ export class EmeraCodeProcessor {
                 };
             }
 
-            const mdViewState = mdView.getState();
-            // Don't do anything in Source mode, we care only about LivePreview
-            if (mdViewState.mode === 'source' && mdViewState.source) {
+            const isLivePreview = state.field(editorLivePreviewField);
+            // We care only about LivePreview, don't do anything in Source mode
+            if (!isLivePreview) {
                 console.log(`[EDITOR] Editor in source mode, skipping`);
                 return {
                     decorations: builder.finish(),
@@ -476,7 +476,7 @@ export class EmeraCodeProcessor {
                 };
             }
 
-            const file = mdView?.file;
+            const file = mdView.file;
             if (!file) {
                 console.log(`[EDITOR] Couldn't find file, skipping`);
                 return {
@@ -494,7 +494,8 @@ export class EmeraCodeProcessor {
                 enter: (node) => {
                     const nodeContent = state.doc.sliceString(node.from, node.to);
 
-                    if (node.type.name.startsWith('inline-code') && (nodeContent.startsWith(EMERA_INLINE_JS_PREFIX) || nodeContent.startsWith(EMERA_INLINE_JSX_PREFIX))) {
+                    const tokenTypes = ((node.type.prop(tokenClassNodeProp) as string) || '').split(' ');
+                    if (tokenTypes.includes('inline-code') && (nodeContent.startsWith(EMERA_INLINE_JS_PREFIX) || nodeContent.startsWith(EMERA_INLINE_JSX_PREFIX))) {
                         toProcess.push({
                             type: nodeContent.startsWith(EMERA_INLINE_JS_PREFIX) ? 'inline-js' : 'inline-jsx',
                             startNode: node.node,
@@ -504,8 +505,9 @@ export class EmeraCodeProcessor {
                         });
                     }
 
-                    const isFenceStart = node.type.name.includes('HyperMD-codeblock-begin');
-                    const isFenceEnd = node.type.name.includes('HyperMD-codeblock-end');
+                    const lineTypes = ((node.type.prop(lineClassNodeProp) as string) || '').split(' ');
+                    const isFenceStart = lineTypes.includes('HyperMD-codeblock-begin');
+                    const isFenceEnd = lineTypes.includes('HyperMD-codeblock-end');
                     const containstEmeraSpecifier = nodeContent.trim().endsWith(EMERA_JSX_LANG_NAME) || nodeContent.trim().includes(`${EMERA_JSX_SHORTHAND_LANG_NAME}:`) || nodeContent.trim().endsWith(EMERA_JS_LANG_NAME);
 
                     if (isFenceStart && containstEmeraSpecifier && !currentBlockStartNode) {
@@ -624,9 +626,12 @@ export class EmeraCodeProcessor {
                     if (el.type === 'block-jsx') return new parent.BlockJsxWidget(renderKey, el.content, ctx);
                 });
                 const isInline = el.type.startsWith('inline');
+                const decorationStart = Math.max(isInline ? el.startNode.from : el.startNode.from - 1, 0);
+                const decorationEnd = isInline ? el.endNode.to : el.endNode.to + 1;
+                console.log('[EDITOR] Adding decoration', decorationStart, decorationEnd, widget);
                 builder.add(
-                    isInline ? el.startNode.from : el.startNode.from - 1,
-                    isInline ? el.endNode.to : el.endNode.to + 1,
+                    decorationStart,
+                    decorationEnd,
                     Decoration.replace({ widget })
                 );
                 readScope = writeScope;

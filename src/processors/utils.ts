@@ -1,12 +1,8 @@
 import type { SyntaxNodeRef } from '@lezer/common';
 import {
     EditorView,
-    ViewPlugin,
-    ViewUpdate
 } from "@codemirror/view";
 import {
-    StateField,
-    StateEffect,
     EditorState,
 } from "@codemirror/state";
 import { MarkdownView } from 'obsidian';
@@ -42,47 +38,3 @@ export const isCursorBetweenNodes = (state: EditorState, node1: SyntaxNodeRef, n
 
     return false;
 };
-
-export const findCurrentView = (plugin: EmeraPlugin, editorView: EditorView): MarkdownView | null => {
-    let view: MarkdownView | null = null;
-    plugin.app.workspace.iterateAllLeaves((leaf) => {
-        // @ts-ignore
-        if (leaf.view && leaf.view instanceof MarkdownView && leaf.view.editor.cm === editorView) {
-            view = leaf.view;
-        }
-    });
-
-    return view;
-};
-
-
-export const emeraCurrentEditorProviderPlugin = ViewPlugin.fromClass(class {
-    view: EditorView;
-
-    constructor(view: EditorView) {
-        this.view = view;
-        setTimeout(() => {
-            view.dispatch({
-                effects: setEditorStateEffect.of(this.view)
-            });
-        }, 0);
-    }
-
-    update(update: ViewUpdate) { }
-}, {});
-
-const setEditorStateEffect = StateEffect.define<EditorView>();
-
-export const emeraCurrentEditorStateField = StateField.define<null | EditorView>({
-    create() {
-        return null;
-    },
-    update(value, tr) {
-        for (const e of tr.effects) {
-            if (e.is(setEditorStateEffect)) {
-                value = e.value
-            }
-        }
-        return value
-    }
-});
