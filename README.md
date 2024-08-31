@@ -45,7 +45,9 @@ This is a plugin for [Obsidian](https://obsidian.md) which enables you to use Re
 
 ## How to install
 
-Emera isn't available in Obsidian plugin catalog (at least yet). To install Emera you need to download zip file from latest release and unpack it into `<your vault>/.obisdian/plugins/emera` and enable it in Obsidian's settings.
+Emera is available in Obsidian plugin catalog, so easiest way to install it is via Obsidian (Settings -> Community plugins -> Browse -> Search for "Emera").
+
+To install Emera manually you need to download zip file from latest release and unpack it into `<your vault>/.obisdian/plugins/emera` and enable it in Obsidian's settings.
 
 ## How to use
 
