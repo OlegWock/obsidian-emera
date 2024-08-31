@@ -40,8 +40,12 @@ This is a plugin for [Obsidian](https://obsidian.md) which enables you to use Re
 
 ## Roadmap / What's missing
 
+I'm working on Emera in my free time, so there is no ETA when this will be implemented (or if it will be implemented at all). But overall, those are features that I find useful and would like to add to Emera at some point:
+
 - [ ] Better TypeScript DX.
 - [ ] Reactive hooks for Obsidian.
+- [ ] When renaming file, prompt user to update all Emera code blocks referencing this file.
+- [ ] Allow widgets to modify their own code. This way you will be able to store data in the note, along with the widget itself (istead of using current `useStorage` hook).
 
 ## How to install
 
