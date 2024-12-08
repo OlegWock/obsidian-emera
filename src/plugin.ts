@@ -1,4 +1,4 @@
-import { App, MarkdownView, Plugin, PluginManifest } from 'obsidian';
+import { App, MarkdownView, Notice, Plugin, PluginManifest } from 'obsidian';
 import { SettingTab } from './settings';
 import { loadUserModule } from './bundler';
 import { EMERA_ROOT_SCOPE } from './consts';
@@ -63,6 +63,15 @@ export class EmeraPlugin extends Plugin {
             this.isComponentsLoaded = true;
             this.resolveComponentsLoaded();
             this.refreshEditors();
+        });
+
+        this.addCommand({
+            id: 'refresh',
+            name: 'Refresh user module',
+            callback: async () => {
+                await this.refreshUserModule();
+                new Notice('User module was reloaded.');
+            },
         });
     }
 
