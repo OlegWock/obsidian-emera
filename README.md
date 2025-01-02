@@ -1,5 +1,8 @@
 # Emera for Obsidian
 
+> [!IMPORTANT]  
+> I stopped using Obsidian shortly after releasing this project, so I don't use Emera anymore. As such, you can consider this project unmaintained. You can still use it, as existing features work quite well. But there won't be any new features, and any bugs are unlikely to be fixed. 
+
 This is a plugin for [Obsidian](https://obsidian.md) which enables you to use React components and inline JavaScript directly into your notes. Kinda like MDX.
 
 ![Screenshot](/.github/screenshot.png)
